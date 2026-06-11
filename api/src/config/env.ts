@@ -48,4 +48,11 @@ if (!parsed.success) {
 
 export type Env = z.infer<typeof envSchema>;
 
+const INSECURE_JWT_DEFAULT = 'change-me-in-prod-please-32chars-min';
+if (parsed.data.NODE_ENV === 'production' && parsed.data.JWT_SECRET === INSECURE_JWT_DEFAULT) {
+  throw new Error(
+    'Refusing to start in production with the default JWT_SECRET. Set a strong, unique JWT_SECRET.',
+  );
+}
+
 export const env: Env = parsed.data;
