@@ -9,6 +9,8 @@ const healthRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/health',
     {
+      // Public probe: opt out of the global auth onRequest hook (src/plugins/auth.ts).
+      config: { public: true },
       schema: {
         tags: ['system'],
         summary: 'Liveness/health probe',

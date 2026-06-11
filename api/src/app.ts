@@ -6,7 +6,11 @@ import {
 } from 'fastify-type-provider-zod';
 
 import { env } from './config/env';
+import errorHandlerPlugin from './plugins/error-handler';
+import authPlugin from './plugins/auth';
+import rateLimitPlugin from './plugins/rate-limit';
 import healthRoutes from './routes/health';
+import authRoutes from './routes/auth';
 
 export interface BuildAppOptions {
   /** Override the Fastify logger configuration (e.g. disable in tests). */
@@ -35,18 +39,28 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.setSerializerCompiler(serializerCompiler);
 
   // ---------------------------------------------------------------------------
-  // Cross-cutting plugins and domain routes are registered here in later stories:
-  //   H3.1  error-handler plugin  (zod -> 422 VALIDATION_ERROR, domain errors, 500)
-  //   H3.1  auth plugin           (@fastify/jwt, request.user, whitelist)
-  //   H3.4  rate-limit plugin     (@fastify/rate-limit on /auth/login, /auth/register)
+  // Cross-cutting plugins, registered BEFORE any route so their hooks apply:
+  //   1. error-handler  — must be set first so every later failure (including
+  //      ones thrown during plugin/route registration) maps to the envelope.
+  //   2. auth           — @fastify/jwt + the global onRequest hook that enforces
+  //      auth on every route except those flagged `{ public: true }`.
+  //   3. rate-limit     — @fastify/rate-limit (global:false); only routes
+  //      carrying `authRateLimit` are throttled (login/register).
+  //
+  // Still pending in later stories:
   //   H1.x  swagger + swagger-ui  (contract documentation from openapi.yaml)
   //   H4.1  farm-scope plugin     (ownership scoping for /farms/:farmId/*)
-  //   H3.x  auth routes           (register, login, refresh, logout, me)
   //   H4.x  domain routes         (farms, fields, stables, machinery, configs, catalog)
-  // For now only the public health route is wired so the scaffold compiles and boots.
   // ---------------------------------------------------------------------------
 
+  await app.register(errorHandlerPlugin);
+  await app.register(authPlugin);
+  await app.register(rateLimitPlugin);
+
+  // Routes. health is public (config set on the route); auth routes mount the
+  // /auth/* contract under the API prefix.
   await app.register(healthRoutes, { prefix: '/api/v1' });
+  await app.register(authRoutes, { prefix: '/api/v1/auth' });
 
   return app;
 }
