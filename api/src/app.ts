@@ -9,8 +9,12 @@ import { env } from './config/env';
 import errorHandlerPlugin from './plugins/error-handler';
 import authPlugin from './plugins/auth';
 import rateLimitPlugin from './plugins/rate-limit';
+import swaggerPlugin from './plugins/swagger';
 import healthRoutes from './routes/health';
 import authRoutes from './routes/auth';
+import catalogRoutes from './routes/catalog';
+import farmsRoutes from './routes/farms';
+import userSettingsRoutes from './routes/userSettings';
 
 export interface BuildAppOptions {
   /** Override the Fastify logger configuration (e.g. disable in tests). */
@@ -46,21 +50,34 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   //      auth on every route except those flagged `{ public: true }`.
   //   3. rate-limit     — @fastify/rate-limit (global:false); only routes
   //      carrying `authRateLimit` are throttled (login/register).
+  //   4. swagger        — @fastify/swagger + swagger-ui (H4.1). Registered
+  //      BEFORE the routes so its onRoute hook captures every route's zod schema
+  //      into the OpenAPI document. The docs UI lives at /api/v1/docs and is
+  //      public (auth plugin skips that subtree).
   //
-  // Still pending in later stories:
-  //   H1.x  swagger + swagger-ui  (contract documentation from openapi.yaml)
-  //   H4.1  farm-scope plugin     (ownership scoping for /farms/:farmId/*)
-  //   H4.x  domain routes         (farms, fields, stables, machinery, configs, catalog)
   // ---------------------------------------------------------------------------
 
   await app.register(errorHandlerPlugin);
   await app.register(authPlugin);
   await app.register(rateLimitPlugin);
+  await app.register(swaggerPlugin);
 
   // Routes. health is public (config set on the route); auth routes mount the
-  // /auth/* contract under the API prefix.
+  // /auth/* contract. The remaining subtrees REQUIRE auth (enforced by the
+  // global auth onRequest hook; only health, /auth/* and /api/v1/docs are
+  // public):
+  //   - catalog  read-only /catalog/* catalog reads
+  //   - farms    /farms CRUD + the nested resource subtree
+  //              (/farms/:farmId/{fields,stables,machinery,animal-configs,
+  //               calculator-states}), with the farm-scope hook applied inside
+  //               the farms plugin so request.farm is resolved before nested
+  //               handlers run.
+  //   - me/settings  the authenticated user's UI preferences.
   await app.register(healthRoutes, { prefix: '/api/v1' });
   await app.register(authRoutes, { prefix: '/api/v1/auth' });
+  await app.register(catalogRoutes, { prefix: '/api/v1/catalog' });
+  await app.register(farmsRoutes, { prefix: '/api/v1/farms' });
+  await app.register(userSettingsRoutes, { prefix: '/api/v1/me/settings' });
 
   return app;
 }
