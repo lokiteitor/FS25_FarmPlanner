@@ -23,6 +23,7 @@ const mainLinks: NavLink[] = [
   { label: 'Establos', to: '/stables' },
   { label: 'Maquinaria', to: '/machinery' },
   { label: 'Calculadora velocidad', to: '/speed-calculator' },
+  { label: 'Migrar datos', to: '/migrate' },
 ]
 
 const animalLinks: NavLink[] = [
