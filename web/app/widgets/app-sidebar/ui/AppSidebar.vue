@@ -20,6 +20,7 @@ interface NavLink {
 const mainLinks: NavLink[] = [
   { label: 'Dashboard', to: '/' },
   { label: 'Campos', to: '/fields' },
+  { label: 'Historial de cosechas', to: '/harvests' },
   { label: 'Establos', to: '/stables' },
   { label: 'Maquinaria', to: '/machinery' },
   { label: 'Calculadora velocidad', to: '/speed-calculator' },

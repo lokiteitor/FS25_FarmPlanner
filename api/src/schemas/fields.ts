@@ -107,6 +107,8 @@ export const fieldSchema = z.object({
   hectares: z.number(),
   cropId: z.string().uuid().nullable(),
   isSilage: z.boolean(),
+  /** Lifecycle state of the field: 'fallow' (no active crop) or 'sown'. */
+  status: z.enum(['fallow', 'sown']),
   yieldBonus: z.number().nullable(),
   purchasePrice: z.number().nullable(),
   createdAt: z.string().datetime(),
@@ -128,6 +130,7 @@ export function mapField(row: FieldRow): FieldDto {
     hectares: row.hectares,
     cropId: row.cropId ?? null,
     isSilage: row.isSilage,
+    status: row.status,
     yieldBonus: row.yieldBonus ?? null,
     purchasePrice: row.purchasePrice ?? null,
     createdAt: row.createdAt.toISOString(),

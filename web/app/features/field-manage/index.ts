@@ -6,6 +6,8 @@
 
 export { default as FieldFormModal } from './ui/FieldFormModal.vue'
 export { default as FieldDeleteModal } from './ui/FieldDeleteModal.vue'
+export { default as FieldHarvestModal } from './ui/FieldHarvestModal.vue'
+export { default as FieldCancelSowModal } from './ui/FieldCancelSowModal.vue'
 
 // Error-message helpers exported for reuse and unit testing of the mapping.
 export {

@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { uuidv7, numeric } from './types';
-import { difficultyEnum, sellPriceTypeEnum, animalSpeciesEnum } from './enums';
+import { difficultyEnum, sellPriceTypeEnum, animalSpeciesEnum, fieldStatusEnum } from './enums';
 import { users } from './identity';
 import { gameVersions, crops } from './catalog';
 
@@ -86,6 +86,7 @@ export const fields = pgTable(
       onDelete: 'set null',
     }),
     isSilage: boolean('is_silage').notNull().default(false),
+    status: fieldStatusEnum('status').notNull().default('fallow'),
     yieldBonus: numeric('yield_bonus', {
       precision: 6,
       scale: 4,
@@ -117,6 +118,54 @@ export const fields = pgTable(
     check(
       'fields_price_non_negative',
       sql`${t.purchasePrice} IS NULL OR ${t.purchasePrice} >= 0`,
+    ),
+  ],
+);
+
+// 10b. harvest_records — histórico de cosechas por campo.
+//
+// Cada vez que el usuario confirma la cosecha de un campo, se inserta una fila
+// aquí con el rendimiento real. El campo vuelve a 'fallow' y crop_id = null.
+// `fieldNumber` es un snapshot para visualización estable aunque el campo sea
+// eliminado (pero la tabla usa cascade, así que si se borra el campo se borra
+// su historial). `cropId` usa set null para que la cosecha sobreviva si el
+// cultivo del catálogo desaparece.
+export const harvestRecords = pgTable(
+  'harvest_records',
+  {
+    id: uuid('id').primaryKey().default(uuidv7()),
+    farmId: uuid('farm_id')
+      .notNull()
+      .references(() => farms.id, { onDelete: 'cascade' }),
+    fieldId: uuid('field_id')
+      .notNull()
+      .references(() => fields.id, { onDelete: 'cascade' }),
+    cropId: uuid('crop_id').references(() => crops.id, { onDelete: 'set null' }),
+    fieldNumber: integer('field_number').notNull(),
+    isSilage: boolean('is_silage').notNull().default(false),
+    actualYieldLiters: numeric('actual_yield_liters', {
+      precision: 14,
+      scale: 2,
+      mode: 'number',
+    }).notNull(),
+    projectedYieldLiters: numeric('projected_yield_liters', {
+      precision: 14,
+      scale: 2,
+      mode: 'number',
+    }),
+    harvestedAt: timestamp('harvested_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('idx_harvest_records_farm_id').on(t.farmId),
+    index('idx_harvest_records_field_id').on(t.fieldId),
+    check(
+      'harvest_records_yield_non_negative',
+      sql`${t.actualYieldLiters} >= 0`,
     ),
   ],
 );

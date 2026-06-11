@@ -17,6 +17,7 @@ import { and, asc, eq } from 'drizzle-orm';
 
 import { db, type DbExecutor } from '../db/client';
 import { crops, fields, silageCrops } from '../db/schema';
+import type { FieldStatus } from '../db/schema';
 
 export type FieldRow = typeof fields.$inferSelect;
 export type CropRow = typeof crops.$inferSelect;
@@ -139,6 +140,26 @@ export async function remove(
     .where(and(eq(fields.id, id), eq(fields.farmId, farmId)))
     .returning({ id: fields.id });
   return rows.length > 0;
+}
+
+/**
+ * Atomically update the `status` and `cropId` of a field (used by the sow /
+ * cancel-sow / harvest lifecycle transitions). Returns the updated row, or
+ * `undefined` if the field was not found in the farm (→ 404).
+ */
+export async function setStatusAndCrop(
+  id: string,
+  farmId: string,
+  status: FieldStatus,
+  cropId: string | null,
+  tx: DbExecutor = db,
+): Promise<FieldRow | undefined> {
+  const [row] = await tx
+    .update(fields)
+    .set({ status, cropId })
+    .where(and(eq(fields.id, id), eq(fields.farmId, farmId)))
+    .returning();
+  return row;
 }
 
 /**

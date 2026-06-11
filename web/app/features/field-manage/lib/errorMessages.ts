@@ -24,6 +24,10 @@ const FIELD_ERROR_MESSAGES: Record<string, string> = {
   CROP_VERSION_MISMATCH: 'El cultivo no pertenece a la versión de la partida.',
   SILAGE_NOT_SUPPORTED_FOR_CROP: 'El cultivo seleccionado no admite ensilaje.',
   VALIDATION_ERROR: 'Revisa los datos introducidos.',
+  // Lifecycle errors
+  FIELD_ALREADY_SOWN: 'El campo ya está en estado sembrado.',
+  FIELD_NOT_SOWN: 'El campo no está en estado sembrado.',
+  FIELD_NO_CROP: 'Asigna un cultivo al campo antes de sembrar.',
   [ERROR_CODES.NETWORK_ERROR]: 'No se pudo conectar con el servidor.',
 }
 
@@ -36,6 +40,7 @@ const CODE_TO_FIELD: Record<string, string> = {
   DUPLICATE_FIELD_NUMBER: 'fieldNumber',
   CROP_VERSION_MISMATCH: 'cropId',
   SILAGE_NOT_SUPPORTED_FOR_CROP: 'isSilage',
+  FIELD_NO_CROP: 'cropId',
 }
 
 /**

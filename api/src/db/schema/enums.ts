@@ -25,6 +25,9 @@ export const animalSpeciesEnum = pgEnum('animal_species', [
   'horse',
 ]);
 
+export const fieldStatusEnum = pgEnum('field_status', ['fallow', 'sown']);
+
 export type Difficulty = (typeof difficultyEnum.enumValues)[number];
 export type SellPriceType = (typeof sellPriceTypeEnum.enumValues)[number];
 export type AnimalSpecies = (typeof animalSpeciesEnum.enumValues)[number];
+export type FieldStatus = (typeof fieldStatusEnum.enumValues)[number];

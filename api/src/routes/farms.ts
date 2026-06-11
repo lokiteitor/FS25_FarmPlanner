@@ -45,6 +45,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { farmScope } from '../plugins/farm-scope';
 import * as farmsController from '../controllers/farms.controller';
 import fieldsRoutes from './fields';
+import harvestsRoutes from './harvests';
 import stablesRoutes from './stables';
 import machineryRoutes from './machinery';
 import animalConfigsRoutes from './animalConfigs';
@@ -143,6 +144,7 @@ const farmsRoutes: FastifyPluginAsyncZod = async (app) => {
       scoped.addHook('onRequest', farmScope);
 
       await scoped.register(fieldsRoutes, { prefix: '/:farmId/fields' });
+      await scoped.register(harvestsRoutes, { prefix: '/:farmId/harvests' });
       await scoped.register(stablesRoutes, { prefix: '/:farmId/stables' });
       await scoped.register(machineryRoutes, { prefix: '/:farmId/machinery' });
       await scoped.register(animalConfigsRoutes, {

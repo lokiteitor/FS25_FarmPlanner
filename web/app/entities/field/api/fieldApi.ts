@@ -6,7 +6,7 @@
 // field store, never these functions directly (docs/arquitectura-frontend.md §8.1).
 
 import { del, get, getData, patch, post } from '~/shared/api'
-import type { Field, FieldCreate, FieldUpdate } from '../model/types'
+import type { Field, FieldCreate, FieldHarvestBody, FieldUpdate } from '../model/types'
 
 /** Path to the fields collection of a farm. */
 function base(farmId: string): string {
@@ -37,4 +37,25 @@ export function update(farmId: string, fieldId: string, body: FieldUpdate): Prom
 /** DELETE /farms/:farmId/fields/:id — delete a field (204). */
 export function remove(farmId: string, fieldId: string): Promise<void> {
   return del<void>(`${base(farmId)}/${fieldId}`)
+}
+
+// ── Lifecycle actions ──────────────────────────────────────────────────────
+
+/** POST /farms/:farmId/fields/:id/sow — mark field as sown (fallow → sown). */
+export function sow(farmId: string, fieldId: string): Promise<Field> {
+  return post<Field>(`${base(farmId)}/${fieldId}/sow`, {})
+}
+
+/** POST /farms/:farmId/fields/:id/cancel-sow — cancel sowing without harvest. */
+export function cancelSow(farmId: string, fieldId: string): Promise<Field> {
+  return post<Field>(`${base(farmId)}/${fieldId}/cancel-sow`, {})
+}
+
+/** POST /farms/:farmId/fields/:id/harvest — record harvest and reset to fallow. */
+export function harvest(
+  farmId: string,
+  fieldId: string,
+  body: FieldHarvestBody,
+): Promise<Field> {
+  return post<Field>(`${base(farmId)}/${fieldId}/harvest`, body)
 }

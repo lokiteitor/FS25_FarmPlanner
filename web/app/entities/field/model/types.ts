@@ -2,6 +2,9 @@
 // Mirrors the `Field` / `FieldCreate` / `FieldUpdate` schemas in
 // docs/openapi.yaml (nested under /farms/:farmId/fields).
 
+/** Lifecycle state of a field. */
+export type FieldStatus = 'fallow' | 'sown'
+
 /**
  * A field belonging to a farm. `cropId` references a catalog crop of the farm's
  * game version (null = fallow). `yieldBonus` null = inherit the farm default.
@@ -17,6 +20,12 @@ export interface Field {
   cropId: string | null
   /** Whether the crop is harvested as silage (chopped). */
   isSilage: boolean
+  /**
+   * Lifecycle state of the field:
+   *  - 'fallow': no active crop cycle. Default.
+   *  - 'sown': crop is planted and growing; can be harvested or cancel-sown.
+   */
+  status: FieldStatus
   /** Per-field yield-bonus override; null → inherits the farm's defaultYieldBonus. */
   yieldBonus: number | null
   /** What the field cost to buy, when recorded; null otherwise. */
@@ -44,4 +53,10 @@ export interface FieldUpdate {
   isSilage?: boolean
   yieldBonus?: number | null
   purchasePrice?: number | null
+}
+
+/** Body for `POST /farms/:farmId/fields/:id/harvest`. */
+export interface FieldHarvestBody {
+  actualYieldLiters: number
+  projectedYieldLiters?: number | null
 }

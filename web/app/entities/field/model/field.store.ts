@@ -8,7 +8,7 @@
 
 import { defineStore } from 'pinia'
 import * as fieldApi from '../api/fieldApi'
-import type { Field, FieldCreate, FieldUpdate } from './types'
+import type { Field, FieldCreate, FieldHarvestBody, FieldUpdate } from './types'
 import { isApiError } from '~/shared/api'
 
 interface FieldState {
@@ -124,6 +124,66 @@ export const useFieldStore = defineStore('field', {
       try {
         await fieldApi.remove(farmId, fieldId)
         this.fields = this.fields.filter((f) => f.id !== fieldId)
+      } catch (err) {
+        this.error = errorMessage(err)
+        throw err
+      } finally {
+        this.saving = false
+      }
+    },
+
+    // ── Lifecycle actions ──────────────────────────────────────────────────
+
+    /** Mark a field as sown (fallow → sown). Patches the field in the list. */
+    async sow(farmId: string, fieldId: string): Promise<Field> {
+      this.saving = true
+      this.error = null
+      try {
+        const field = await fieldApi.sow(farmId, fieldId)
+        const idx = this.fields.findIndex((f) => f.id === fieldId)
+        if (idx >= 0) this.fields[idx] = field
+        return field
+      } catch (err) {
+        this.error = errorMessage(err)
+        throw err
+      } finally {
+        this.saving = false
+      }
+    },
+
+    /** Cancel a sowing without recording a harvest (sown → fallow). */
+    async cancelSow(farmId: string, fieldId: string): Promise<Field> {
+      this.saving = true
+      this.error = null
+      try {
+        const field = await fieldApi.cancelSow(farmId, fieldId)
+        const idx = this.fields.findIndex((f) => f.id === fieldId)
+        if (idx >= 0) this.fields[idx] = field
+        return field
+      } catch (err) {
+        this.error = errorMessage(err)
+        throw err
+      } finally {
+        this.saving = false
+      }
+    },
+
+    /**
+     * Record a harvest (sown → fallow). The field is reset to fallow with
+     * `cropId = null`. Patches the field in the list.
+     */
+    async harvest(
+      farmId: string,
+      fieldId: string,
+      body: FieldHarvestBody,
+    ): Promise<Field> {
+      this.saving = true
+      this.error = null
+      try {
+        const field = await fieldApi.harvest(farmId, fieldId, body)
+        const idx = this.fields.findIndex((f) => f.id === fieldId)
+        if (idx >= 0) this.fields[idx] = field
+        return field
       } catch (err) {
         this.error = errorMessage(err)
         throw err

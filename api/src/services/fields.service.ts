@@ -24,11 +24,15 @@
  * Throws domain {@link AppError}s; the error-handler plugin renders them.
  */
 
+import { db } from '../db/client';
 import { NotFoundError, UnprocessableError } from '../lib/errors';
 import type { FarmRow } from '../repositories/farms.repository';
 import * as fieldsRepo from '../repositories/fields.repository';
 import type { FieldRow } from '../repositories/fields.repository';
+import * as harvestRecordsRepo from '../repositories/harvestRecords.repository';
+import type { HarvestRecordRow } from '../repositories/harvestRecords.repository';
 import type { FieldCreateInput, FieldUpdateInput } from '../schemas/fields';
+import type { HarvestInput } from '../schemas/harvests';
 
 /**
  * Validate the crop-coherence + silage business rules for a field's effective
@@ -157,4 +161,135 @@ export async function remove(farm: FarmRow, fieldId: string): Promise<void> {
   if (!deleted) {
     throw new NotFoundError('FIELD_NOT_FOUND');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle transitions: sow / cancel-sow / harvest
+// ---------------------------------------------------------------------------
+
+/**
+ * Mark a field as sown (`fallow → sown`).
+ *
+ * Requires the field to have a crop assigned — sowing without a crop is a
+ * business-rule violation (`422 FIELD_NO_CROP`). Also rejects if the field is
+ * already sown (`422 FIELD_ALREADY_SOWN`).
+ */
+export async function sow(farm: FarmRow, fieldId: string): Promise<FieldRow> {
+  const field = await get(farm, fieldId);
+
+  if (field.status !== 'fallow') {
+    throw new UnprocessableError(
+      'FIELD_ALREADY_SOWN',
+      'El campo ya está en estado sembrado',
+    );
+  }
+  if (!field.cropId) {
+    throw new UnprocessableError(
+      'FIELD_NO_CROP',
+      'Asigna un cultivo al campo antes de sembrar',
+    );
+  }
+
+  const updated = await fieldsRepo.setStatusAndCrop(
+    fieldId,
+    farm.id,
+    'sown',
+    field.cropId,
+  );
+  if (!updated) throw new NotFoundError('FIELD_NOT_FOUND');
+  return updated;
+}
+
+/**
+ * Cancel a sowing (`sown → fallow`) without recording a harvest.
+ *
+ * The crop assignment is preserved so the user can re-sow later. Rejects if
+ * the field is not currently sown (`422 FIELD_NOT_SOWN`).
+ */
+export async function cancelSow(
+  farm: FarmRow,
+  fieldId: string,
+): Promise<FieldRow> {
+  const field = await get(farm, fieldId);
+
+  if (field.status !== 'sown') {
+    throw new UnprocessableError(
+      'FIELD_NOT_SOWN',
+      'El campo no está en estado sembrado',
+    );
+  }
+
+  // Revert to fallow keeping the same cropId (user can re-sow).
+  const updated = await fieldsRepo.setStatusAndCrop(
+    fieldId,
+    farm.id,
+    'fallow',
+    field.cropId,
+  );
+  if (!updated) throw new NotFoundError('FIELD_NOT_FOUND');
+  return updated;
+}
+
+/**
+ * Record a harvest (`sown → fallow`).
+ *
+ * Atomically:
+ *  1. Creates a `harvest_records` row with the actual (and optionally projected)
+ *     yield in liters, plus a snapshot of the field number and crop.
+ *  2. Resets the field to `fallow` with `crop_id = null`.
+ *
+ * Rejects if the field is not currently sown (`422 FIELD_NOT_SOWN`).
+ * Returns the updated field row (status = 'fallow', cropId = null).
+ */
+export async function harvest(
+  farm: FarmRow,
+  fieldId: string,
+  input: HarvestInput,
+): Promise<{ field: FieldRow; record: HarvestRecordRow }> {
+  const field = await get(farm, fieldId);
+
+  if (field.status !== 'sown') {
+    throw new UnprocessableError(
+      'FIELD_NOT_SOWN',
+      'El campo no está en estado sembrado',
+    );
+  }
+
+  // Run both writes in one transaction so a mid-flight failure leaves no
+  // dangling harvest_record with a still-sown field (or vice versa).
+  return db.transaction(async (tx) => {
+    const record = await harvestRecordsRepo.create(
+      {
+        farmId: farm.id,
+        fieldId,
+        cropId: field.cropId,
+        fieldNumber: field.fieldNumber,
+        isSilage: field.isSilage,
+        actualYieldLiters: input.actualYieldLiters,
+        projectedYieldLiters: input.projectedYieldLiters,
+      },
+      tx,
+    );
+
+    const updated = await fieldsRepo.setStatusAndCrop(
+      fieldId,
+      farm.id,
+      'fallow',
+      null, // crop_id → null after harvest
+      tx,
+    );
+    if (!updated) throw new NotFoundError('FIELD_NOT_FOUND');
+
+    return { field: updated, record };
+  });
+}
+
+/**
+ * List all harvest records of a farm ordered by most recent first.
+ * Used for the farm-level history page.
+ */
+export async function listHarvests(
+  farm: FarmRow,
+): Promise<HarvestRecordRow[]> {
+  return harvestRecordsRepo.listByFarm(farm.id);
 }

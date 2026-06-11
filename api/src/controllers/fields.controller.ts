@@ -23,6 +23,8 @@ import type {
   FieldParams,
   FieldUpdateInput,
 } from '../schemas/fields';
+import { mapHarvest } from '../schemas/harvests';
+import type { HarvestInput } from '../schemas/harvests';
 
 /**
  * Read the owned farm decorated by the farm-scope hook. Throws if absent, which
@@ -83,4 +85,50 @@ export async function deleteField(
 ): Promise<void> {
   await fieldsService.remove(requireFarm(request), request.params.fieldId);
   await reply.status(204).send();
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle actions
+// ---------------------------------------------------------------------------
+
+/** POST /farms/{farmId}/fields/{fieldId}/sow → 200 { data: Field }. */
+export async function sowField(
+  request: FastifyRequest<{ Params: FieldParams }>,
+): Promise<{ data: ReturnType<typeof mapField> }> {
+  const field = await fieldsService.sow(
+    requireFarm(request),
+    request.params.fieldId,
+  );
+  return { data: mapField(field) };
+}
+
+/** POST /farms/{farmId}/fields/{fieldId}/cancel-sow → 200 { data: Field }. */
+export async function cancelSowField(
+  request: FastifyRequest<{ Params: FieldParams }>,
+): Promise<{ data: ReturnType<typeof mapField> }> {
+  const field = await fieldsService.cancelSow(
+    requireFarm(request),
+    request.params.fieldId,
+  );
+  return { data: mapField(field) };
+}
+
+/** POST /farms/{farmId}/fields/{fieldId}/harvest → 200 { data: Field }. */
+export async function harvestField(
+  request: FastifyRequest<{ Params: FieldParams; Body: HarvestInput }>,
+): Promise<{ data: ReturnType<typeof mapField> }> {
+  const { field } = await fieldsService.harvest(
+    requireFarm(request),
+    request.params.fieldId,
+    request.body,
+  );
+  return { data: mapField(field) };
+}
+
+/** GET /farms/{farmId}/harvests → 200 { data: HarvestRecord[] }. */
+export async function listFarmHarvests(
+  request: FastifyRequest,
+): Promise<{ data: ReturnType<typeof mapHarvest>[] }> {
+  const records = await fieldsService.listHarvests(requireFarm(request));
+  return { data: records.map(mapHarvest) };
 }

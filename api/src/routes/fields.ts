@@ -32,6 +32,7 @@ import {
   fieldResponse,
   fieldsListResponse,
 } from '../schemas/fields';
+import { harvestBody } from '../schemas/harvests';
 
 const fieldsRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
@@ -97,6 +98,48 @@ const fieldsRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     fieldsController.deleteField,
+  );
+
+  // ── Lifecycle actions ──────────────────────────────────────────────────────
+
+  app.post(
+    '/:fieldId/sow',
+    {
+      schema: {
+        tags: ['Fields'],
+        summary: 'Sembrar campo (fallow → sown)',
+        params: fieldParams,
+        response: { 200: fieldResponse },
+      },
+    },
+    fieldsController.sowField,
+  );
+
+  app.post(
+    '/:fieldId/cancel-sow',
+    {
+      schema: {
+        tags: ['Fields'],
+        summary: 'Cancelar siembra (sown → fallow, sin registro de cosecha)',
+        params: fieldParams,
+        response: { 200: fieldResponse },
+      },
+    },
+    fieldsController.cancelSowField,
+  );
+
+  app.post(
+    '/:fieldId/harvest',
+    {
+      schema: {
+        tags: ['Fields'],
+        summary: 'Cosechar campo (sown → fallow + harvest_record)',
+        params: fieldParams,
+        body: harvestBody,
+        response: { 200: fieldResponse },
+      },
+    },
+    fieldsController.harvestField,
   );
 };
 

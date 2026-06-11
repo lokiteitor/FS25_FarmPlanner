@@ -7,4 +7,4 @@ export { useFieldStore } from './model/field.store'
 
 export * as fieldApi from './api/fieldApi'
 
-export type { Field, FieldCreate, FieldUpdate } from './model/types'
+export type { Field, FieldCreate, FieldHarvestBody, FieldStatus, FieldUpdate } from './model/types'

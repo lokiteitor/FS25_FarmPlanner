@@ -20,12 +20,19 @@ import type { Field } from '~/entities/field'
 import { cropProjection } from '~/shared/lib/engine'
 import type { EngineCatalog, FarmContext } from '~/shared/lib/engine'
 import { formatMoney, formatNumber, formatPercent } from '~/shared/lib/format'
-import { FieldDeleteModal, FieldFormModal } from '~/features/field-manage'
+import {
+  FieldCancelSowModal,
+  FieldDeleteModal,
+  FieldFormModal,
+  FieldHarvestModal,
+} from '~/features/field-manage'
+import { useHarvestRecordStore } from '~/entities/harvest-record'
 import { CropComparisonTable } from '~/widgets/crop-comparison-table'
 
 const farmStore = useFarmStore()
 const catalogStore = useCatalogStore()
 const fieldStore = useFieldStore()
+const harvestRecordStore = useHarvestRecordStore()
 
 const bootstrapping = ref(true)
 const bootstrapError = ref('')
@@ -37,6 +44,13 @@ const prefillCropSlug = ref<string | null>(null)
 
 const deleteOpen = ref(false)
 const deletingField = ref<Field | null>(null)
+
+const harvestOpen = ref(false)
+const harvestingField = ref<Field | null>(null)
+const harvestProjected = ref<number | null>(null)
+
+const cancelSowOpen = ref(false)
+const cancelSowField = ref<Field | null>(null)
 
 // ── Derived farm/catalog context ──────────────────────────────────────────────
 const activeFarm = computed(() => farmStore.activeFarm)
@@ -90,6 +104,7 @@ interface FieldRow extends Record<string, unknown> {
   hectares: number
   cropName: string
   isSilage: boolean
+  status: 'fallow' | 'sown'
   effectiveBonus: number
   yieldLiters: number | null
   estimatedIncome: number | null
@@ -129,6 +144,7 @@ const rows = computed<FieldRow[]>(() => {
       hectares: field.hectares,
       cropName: crop?.nameEs ?? 'Sin cultivo',
       isSilage: field.isSilage,
+      status: field.status,
       effectiveBonus,
       yieldLiters,
       estimatedIncome,
@@ -145,11 +161,12 @@ const columns: DataTableColumn[] = [
   { key: 'fieldNumber', label: 'Nº', align: 'right', width: '4rem' },
   { key: 'hectares', label: 'Hectáreas', align: 'right' },
   { key: 'cropName', label: 'Cultivo' },
+  { key: 'status', label: 'Estado', align: 'center' },
   { key: 'isSilage', label: 'Ensilaje', align: 'center' },
   { key: 'effectiveBonus', label: 'Bonus', align: 'right' },
   { key: 'yieldLiters', label: 'Rendimiento', align: 'right' },
   { key: 'estimatedIncome', label: 'Ingreso estimado', align: 'right' },
-  { key: 'actions', label: '', align: 'right', width: '10rem' },
+  { key: 'actions', label: '', align: 'right', width: '14rem' },
 ]
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -168,6 +185,44 @@ function openEdit(field: Field) {
 function openDelete(field: Field) {
   deletingField.value = field
   deleteOpen.value = true
+}
+
+function openHarvest(row: FieldRow) {
+  harvestingField.value = row.raw
+  harvestProjected.value = row.yieldLiters
+  harvestOpen.value = true
+}
+
+function openCancelSow(field: Field) {
+  cancelSowField.value = field
+  cancelSowOpen.value = true
+}
+
+async function onSowClick(field: Field) {
+  const farmId = activeFarm.value?.id
+  if (!farmId) return
+  try {
+    await fieldStore.sow(farmId, field.id)
+  } catch {
+    // errors handled inside the store; surface nothing extra here
+  }
+}
+
+function onHarvestClose() {
+  harvestOpen.value = false
+}
+
+async function onHarvested(fieldId: string) {
+  const farmId = activeFarm.value?.id
+  if (!farmId) return
+  // Reload the harvest-record store so the /harvests page is up to date.
+  await harvestRecordStore.load(farmId).catch(() => undefined)
+  harvestOpen.value = false
+  void fieldId
+}
+
+function onCancelSowClose() {
+  cancelSowOpen.value = false
 }
 
 /** "Sembrar" from the comparison table → open the create form pre-seeded. */
@@ -240,6 +295,14 @@ function onDeleteClose() {
           <template #cell-hectares="{ value }">
             {{ formatNumber(value as number, 2) }}
           </template>
+          <template #cell-status="{ value }">
+            <span
+              class="fields-page__status-badge"
+              :class="`fields-page__status-badge--${value as string}`"
+            >
+              {{ (value as string) === 'sown' ? 'Sembrado' : 'En barbecho' }}
+            </span>
+          </template>
           <template #cell-isSilage="{ value }">
             {{ (value as boolean) ? 'Sí' : 'No' }}
           </template>
@@ -254,12 +317,42 @@ function onDeleteClose() {
           </template>
           <template #cell-actions="{ row }">
             <div class="fields-page__row-actions">
-              <AppButton size="sm" variant="ghost" @click="openEdit((row as FieldRow).raw)">
-                Editar
-              </AppButton>
-              <AppButton size="sm" variant="danger" @click="openDelete((row as FieldRow).raw)">
-                Eliminar
-              </AppButton>
+              <!-- fallow + no crop: only edit/delete -->
+              <!-- fallow + crop assigned: edit, sembrar, delete -->
+              <!-- sown: cosechar + cancelar siembra (no edit/delete while active) -->
+              <template v-if="(row as FieldRow).status === 'sown'">
+                <AppButton
+                  size="sm"
+                  variant="primary"
+                  @click="openHarvest((row as FieldRow))"
+                >
+                  Cosechar
+                </AppButton>
+                <AppButton
+                  size="sm"
+                  variant="ghost"
+                  @click="openCancelSow((row as FieldRow).raw)"
+                >
+                  Cancelar siembra
+                </AppButton>
+              </template>
+              <template v-else>
+                <AppButton
+                  v-if="(row as FieldRow).raw.cropId"
+                  size="sm"
+                  variant="ghost"
+                  :loading="fieldStore.saving"
+                  @click="onSowClick((row as FieldRow).raw)"
+                >
+                  Sembrar
+                </AppButton>
+                <AppButton size="sm" variant="ghost" @click="openEdit((row as FieldRow).raw)">
+                  Editar
+                </AppButton>
+                <AppButton size="sm" variant="danger" @click="openDelete((row as FieldRow).raw)">
+                  Eliminar
+                </AppButton>
+              </template>
             </div>
           </template>
           <template #empty>
@@ -287,6 +380,21 @@ function onDeleteClose() {
         :farm-id="activeFarm.id"
         :field="deletingField"
         @close="onDeleteClose"
+      />
+      <FieldHarvestModal
+        :open="harvestOpen"
+        :farm-id="activeFarm.id"
+        :field="harvestingField"
+        :projected-yield-liters="harvestProjected"
+        @close="onHarvestClose"
+        @harvested="onHarvested"
+      />
+      <FieldCancelSowModal
+        :open="cancelSowOpen"
+        :farm-id="activeFarm.id"
+        :field="cancelSowField"
+        @close="onCancelSowClose"
+        @cancelled="onCancelSowClose"
       />
     </template>
   </div>
@@ -331,6 +439,26 @@ function onDeleteClose() {
     display: inline-flex;
     gap: $space-sm;
     justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  &__status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &--fallow {
+      background: rgba(var(--text-muted-rgb, 150, 150, 150), 0.15);
+      color: var(--text-muted);
+    }
+
+    &--sown {
+      background: rgba(82, 196, 26, 0.15);
+      color: #52c41a;
+    }
   }
 
   &__muted {
