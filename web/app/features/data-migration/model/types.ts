@@ -3,19 +3,25 @@
 // the import `ImportReport`, and a lenient zod schema so a bad upload fails
 // clearly with field paths instead of throwing deep in the import.
 //
-// IMPORTANT — the prototype (`planner/`) is NOT in this repo, so its exact
-// IndexedDB schema is unknown. This file is the contract we ASSUME and produce;
-// the exporter (lib/exportIndexedDb) best-effort maps real prototype stores into
-// it, and the importer (lib/importMigration) consumes it tolerantly.
+// The prototype IndexedDB schema is now KNOWN (verified against
+// planner/app/composables/useDB.ts + the pages). This file is the contract the
+// exporter (lib/exportIndexedDb) produces and the importer (lib/importMigration)
+// consumes; it is intentionally slightly looser than the raw prototype so a
+// hand-edited or re-exported document still imports.
 //
-// Assumed prototype → PrototypeExport mapping (see lib/exportIndexedDb for the
-// IndexedDB details):
-//   - global settings (useGlobalSettings: difficulty / yieldBonus /
-//     sellPriceType / mapName) → `settings`.
-//   - the `fields` store rows → `fields[]` (crop stored as the SPANISH name).
-//   - `machinery` / `stables` stores (if present) → those arrays.
-//   - `*_calculator_config` keys in the settings KV store → `animalConfigs`
-//     keyed by species (cow/buffalo/…).
+// Real prototype → PrototypeExport mapping (see lib/exportIndexedDb for details):
+//   - `app_settings` (difficulty:'Easy'|… / yieldBonus) + `global_settings`
+//     (sellPrice:'Baseline'|'MaxSeasonal') → `settings` (translated to the API
+//     encoding: easy/normal/hard, baseline/max_seasonal).
+//   - the `fields` store rows ({fieldNumber, hectares, selectedCrop (SPANISH),
+//     yieldBonus, purchasePrice}) → `fields[]`. The prototype has NO per-field
+//     silage flag, so `isSilage` is always false on export (kept optional in the
+//     contract for re-imports / forward compatibility).
+//   - `registered_machinery` ({name,width,speed}[]) → `machinery[]`.
+//   - `registered_stables` ({name,type:'Cow'|…,maxCapacity,currentCount,settings})
+//     → `stables[]` (species kept as the RAW prototype label; importer normalizes).
+//   - `animal_<species>` keys (raw calculator inputs) → `animalConfigs` keyed by
+//     species; the importer translates them to the API encoding.
 
 import { z } from 'zod'
 

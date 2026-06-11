@@ -3,34 +3,35 @@
 // into the documented {@link PrototypeExport} shape.
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// ASSUMED PROTOTYPE INDEXEDDB SCHEMA  (the prototype `planner/` is NOT in this
-// repo, so this is a documented best-effort guess; the DB name is supplied by
-// the caller — use {@link listPrototypeDatabases} to discover candidates):
+// REAL PROTOTYPE INDEXEDDB SCHEMA  (verified against
+// planner/planner/app/composables/useDB.ts + the pages that persist data):
 //
-//   DB name:  unknown → caller supplies (default guess: 'fs25-planner').
+//   DB name:  'fs25_farm_planner_db'  (DB_VERSION 1).
 //
-//   object store 'fields'  (one record per field):
-//     { id?, fieldNumber|number|field, hectares|ha|size, crop|cropName|cultivo
-//       (SPANISH crop name), isSilage|silage, yieldBonus, purchasePrice|price }
+//   object store 'fields'  (keyPath 'id', autoIncrement; one record per field):
+//     { id, fieldNumber, hectares, selectedCrop (SPANISH crop name, '' = fallow),
+//       yieldBonus (decimal, e.g. 0.425), purchasePrice }
+//     NOTE: the prototype has NO per-field silage flag.
 //
-//   object store 'settings' (KV store: a single record, OR keyPath records):
-//     keys (from useGlobalSettings):
-//       difficulty | yieldBonus | sellPriceType | mapName
-//     plus per-species calculator configs keyed like:
-//       cow_calculator_config, buffalo_calculator_config, …, horse_calculator_config
-//       (value = the raw calculator inputs object for that species).
+//   object store 'settings'  (plain KV store: value stored under a string key).
+//     The keys the prototype actually writes (grep of saveSetting):
+//       'app_settings'      → { difficulty:'Easy'|'Normal'|'Hard', yieldBonus:number }
+//       'global_settings'   → { sellPrice:'Baseline'|'MaxSeasonal' }  (older dumps
+//                              may also carry difficulty here)
+//       'registered_machinery' → Array<{ name, width, speed }>
+//       'registered_stables'   → Array<{ name, type:'Cow'|'Chicken'|…, maxCapacity,
+//                                        currentCount, settings? }>
+//       'animal_cows' | 'animal_buffaloes' | 'animal_chickens' | 'animal_sheep'
+//         | 'animal_goats' | 'animal_pigs' | 'animal_horses'
+//                              → the raw per-species calculator inputs object
+//                                (numCows/feedType 'TMR'/silageCrop 'Corn'/…).
+//       'work_speed_calculator_data' → { hectares, selectedFieldId, efficiency,
+//                                        activeToolNames[] }
 //
-//   object store 'machinery' (optional, one record per machine):
-//     { name, workingWidthM|width, workingSpeedKmh|speed }
-//
-//   object store 'stables' (optional, one record per stable):
-//     { name, species, maxCapacity|capacity, currentCount|count, config }
-//
-// The reader is intentionally DEFENSIVE: it accepts several plausible field
-// names, a KV `settings` store OR a single settings record, and ignores stores
-// it does not recognize. Anything it cannot map is omitted (and the importer is
-// equally tolerant). DO NOT assume this is exact — adjust the key aliases below
-// once the real prototype DB is inspected.
+// The reader is DEFENSIVE: it still accepts a few legacy aliases, a KV store OR a
+// single settings record, and ignores anything it does not recognize. Per-species
+// config translation (prototype encodings → the API inputs) happens in the
+// importer (lib/importMigration); the exporter passes the raw inputs through.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type {
@@ -43,11 +44,28 @@ import type {
 } from '../model/types'
 import { DIFFICULTIES, SELL_PRICE_TYPES } from '../model/types'
 
-/** Default DB name guess when the caller has no better information. */
-export const DEFAULT_PROTOTYPE_DB_NAME = 'fs25-planner'
+/** The real prototype IndexedDB database name (planner useDB.ts DB_NAME). */
+export const DEFAULT_PROTOTYPE_DB_NAME = 'fs25_farm_planner_db'
 
-/** Suffix the prototype used for per-species calculator config keys. */
-const CALC_CONFIG_SUFFIX = '_calculator_config'
+/** Prototype settings KV keys (verified against the prototype pages). */
+const SETTINGS_KEYS = {
+  appSettings: 'app_settings',
+  globalSettings: 'global_settings',
+  machinery: 'registered_machinery',
+  stables: 'registered_stables',
+  speedCalculator: 'work_speed_calculator_data',
+} as const
+
+/** Per-species `animal_<species>` settings keys, by API species. */
+const ANIMAL_CONFIG_KEYS: Readonly<Record<AnimalSpecies, string>> = {
+  cow: 'animal_cows',
+  buffalo: 'animal_buffaloes',
+  chicken: 'animal_chickens',
+  sheep: 'animal_sheep',
+  goat: 'animal_goats',
+  pig: 'animal_pigs',
+  horse: 'animal_horses',
+}
 
 const KNOWN_SPECIES: readonly AnimalSpecies[] = [
   'cow',
@@ -58,6 +76,19 @@ const KNOWN_SPECIES: readonly AnimalSpecies[] = [
   'pig',
   'horse',
 ]
+
+/** Prototype proto difficulty (PascalCase) → API difficulty. */
+const PROTO_DIFFICULTY_TO_API: Readonly<Record<string, PrototypeSettings['difficulty']>> = {
+  Easy: 'easy',
+  Normal: 'normal',
+  Hard: 'hard',
+}
+
+/** Prototype proto sell-price (PascalCase) → API sellPriceType. */
+const PROTO_SELL_PRICE_TO_API: Readonly<Record<string, PrototypeSettings['sellPriceType']>> = {
+  Baseline: 'baseline',
+  MaxSeasonal: 'max_seasonal',
+}
 
 /** True when IndexedDB exists in this runtime (browser only). */
 export function isIndexedDbAvailable(): boolean {
@@ -108,13 +139,6 @@ function toNumber(value: unknown): number | undefined {
   return undefined
 }
 
-function toBool(value: unknown): boolean | undefined {
-  if (typeof value === 'boolean') return value
-  if (value === 'true' || value === 1) return true
-  if (value === 'false' || value === 0) return false
-  return undefined
-}
-
 // --- raw IndexedDB plumbing --------------------------------------------------
 
 /** Open a database read-only (does not create it: version left unspecified). */
@@ -143,9 +167,10 @@ function readStore(db: IDBDatabase, storeName: string): Promise<unknown[]> {
 }
 
 /**
- * Read a store as a flat KV map. Handles two layouts:
- *   - keyPath store: each record is `{ key, value }` (or `{ name, value }`).
- *   - single-record store: one object whose own keys are the settings.
+ * Read the prototype `settings` store into a flat KV map. The real prototype is
+ * a plain KV store (`store.put(value, key)`): `getAll()` returns the VALUES and
+ * `getAllKeys()` the KEYS, in matching order, so we zip them. Also tolerates a
+ * legacy keyPath store (`{ key/name/id, value }`) or a single object-bag record.
  */
 function readKvStore(db: IDBDatabase, storeName: string): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
@@ -155,24 +180,49 @@ function readKvStore(db: IDBDatabase, storeName: string): Promise<Record<string,
     }
     const tx = db.transaction(storeName, 'readonly')
     const store = tx.objectStore(storeName)
-    const req = store.getAll()
-    req.onsuccess = () => {
-      const rows = Array.isArray(req.result) ? req.result : []
+    const valuesReq = store.getAll()
+    const keysReq = store.getAllKeys()
+    let values: unknown[] | undefined
+    let keys: IDBValidKey[] | undefined
+
+    const finish = () => {
+      if (values === undefined || keys === undefined) return
       const kv: Record<string, unknown> = {}
-      for (const row of rows) {
+
+      // Plain KV store: getAllKeys() lines up with getAll() by index.
+      if (keys.length === values.length && keys.every((k) => typeof k === 'string')) {
+        keys.forEach((k, i) => {
+          kv[k as string] = values![i]
+        })
+        resolve(kv)
+        return
+      }
+
+      // Legacy fallbacks: keyPath records, or a single object-bag record.
+      for (const row of values) {
         const rec = asRecord(row)
         const key = rec.key ?? rec.name ?? rec.id
         if (typeof key === 'string' && 'value' in rec) {
-          // KV-style record.
           kv[key] = rec.value
         } else {
-          // Single-record / object-bag style: fold its own keys in.
           for (const [k, v] of Object.entries(rec)) kv[k] = v
         }
       }
       resolve(kv)
     }
-    req.onerror = () => reject(req.error ?? new Error(`Failed to read KV store "${storeName}"`))
+
+    valuesReq.onsuccess = () => {
+      values = Array.isArray(valuesReq.result) ? valuesReq.result : []
+      finish()
+    }
+    keysReq.onsuccess = () => {
+      keys = Array.isArray(keysReq.result) ? keysReq.result : []
+      finish()
+    }
+    valuesReq.onerror = () =>
+      reject(valuesReq.error ?? new Error(`Failed to read KV store "${storeName}"`))
+    keysReq.onerror = () =>
+      reject(keysReq.error ?? new Error(`Failed to read KV store "${storeName}"`))
   })
 }
 
@@ -182,13 +232,16 @@ function mapField(row: unknown, index: number): PrototypeField {
   const r = asRecord(row)
   const fieldNumber = toNumber(pick(r, ['fieldNumber', 'number', 'field', 'no'])) ?? index + 1
   const hectares = toNumber(pick(r, ['hectares', 'ha', 'size', 'area'])) ?? 0
-  const cropRaw = pick(r, ['crop', 'cropName', 'cultivo', 'cropEs'])
+  // The prototype stores the (Spanish) crop in `selectedCrop`; '' means fallow.
+  const cropRaw = pick(r, ['selectedCrop', 'crop', 'cropName', 'cultivo', 'cropEs'])
   const crop = typeof cropRaw === 'string' && cropRaw.trim() !== '' ? cropRaw : null
   return {
     fieldNumber,
     hectares,
     crop,
-    isSilage: toBool(pick(r, ['isSilage', 'silage', 'ensilaje'])) ?? false,
+    // The real prototype has no per-field silage flag; default false (importer
+    // also forces fallow fields to non-silage).
+    isSilage: false,
     yieldBonus: toNumber(pick(r, ['yieldBonus', 'bonus'])) ?? null,
     purchasePrice: toNumber(pick(r, ['purchasePrice', 'price', 'precio'])) ?? null,
   }
@@ -198,51 +251,81 @@ function mapMachine(row: unknown): PrototypeMachine {
   const r = asRecord(row)
   return {
     name: String(pick(r, ['name', 'nombre']) ?? 'Máquina'),
-    workingWidthM: toNumber(pick(r, ['workingWidthM', 'width', 'anchura'])) ?? 0,
-    workingSpeedKmh: toNumber(pick(r, ['workingSpeedKmh', 'speed', 'velocidad'])) ?? 0,
+    // The prototype machinery store uses { name, width, speed }.
+    workingWidthM: toNumber(pick(r, ['width', 'workingWidthM', 'anchura'])) ?? 0,
+    workingSpeedKmh: toNumber(pick(r, ['speed', 'workingSpeedKmh', 'velocidad'])) ?? 0,
   }
 }
 
 function mapStable(row: unknown): PrototypeStable {
   const r = asRecord(row)
+  // The prototype stable record uses `type` (PascalCase: 'Cow'|'Chicken'|…) and
+  // an optional `settings` object (the full per-stable calculator inputs). We
+  // keep `species` as the RAW prototype value; the importer normalizes/translates.
   return {
     name: String(pick(r, ['name', 'nombre']) ?? 'Establo'),
-    species: String(pick(r, ['species', 'especie', 'animal']) ?? ''),
+    species: String(pick(r, ['type', 'species', 'especie', 'animal']) ?? ''),
     maxCapacity: toNumber(pick(r, ['maxCapacity', 'capacity', 'capacidad'])) ?? 0,
     currentCount: toNumber(pick(r, ['currentCount', 'count', 'cantidad'])) ?? 0,
-    config: asRecord(pick(r, ['config', 'inputs'])),
+    config: asRecord(pick(r, ['settings', 'config', 'inputs'])),
   }
 }
 
+/**
+ * Map the prototype settings KV map onto {@link PrototypeSettings}.
+ *   - difficulty / yieldBonus come from `app_settings`.
+ *   - sellPriceType comes from `global_settings.sellPrice`.
+ * Both prototype settings objects use PascalCase enums (Easy/Normal/Hard,
+ * Baseline/MaxSeasonal) which we translate to the API encoding here so the
+ * importer receives the contract values directly.
+ */
 function mapSettings(kv: Record<string, unknown>): PrototypeSettings {
   const settings: PrototypeSettings = {}
 
-  const difficulty = kv.difficulty
-  if (typeof difficulty === 'string' && (DIFFICULTIES as readonly string[]).includes(difficulty)) {
-    settings.difficulty = difficulty as PrototypeSettings['difficulty']
+  const app = asRecord(kv[SETTINGS_KEYS.appSettings])
+  const global = asRecord(kv[SETTINGS_KEYS.globalSettings])
+
+  // difficulty: app_settings first, then a legacy global_settings.difficulty.
+  const rawDifficulty = pick(app, ['difficulty']) ?? pick(global, ['difficulty']) ?? kv.difficulty
+  if (typeof rawDifficulty === 'string') {
+    const mapped = PROTO_DIFFICULTY_TO_API[rawDifficulty]
+    if (mapped) {
+      settings.difficulty = mapped
+    } else if ((DIFFICULTIES as readonly string[]).includes(rawDifficulty)) {
+      // Already in API encoding (e.g. a re-export).
+      settings.difficulty = rawDifficulty as PrototypeSettings['difficulty']
+    }
   }
 
-  const yieldBonus = toNumber(kv.yieldBonus)
+  const yieldBonus = toNumber(pick(app, ['yieldBonus']) ?? kv.yieldBonus)
   if (yieldBonus !== undefined) settings.yieldBonus = yieldBonus
 
-  const sellPriceType = kv.sellPriceType
-  if (
-    typeof sellPriceType === 'string' &&
-    (SELL_PRICE_TYPES as readonly string[]).includes(sellPriceType)
-  ) {
-    settings.sellPriceType = sellPriceType as PrototypeSettings['sellPriceType']
+  // sellPriceType: global_settings.sellPrice (PascalCase) → API encoding.
+  const rawSell =
+    pick(global, ['sellPrice', 'sellPriceType']) ??
+    pick(app, ['sellPrice', 'sellPriceType']) ??
+    kv.sellPriceType ??
+    kv.sellPrice
+  if (typeof rawSell === 'string') {
+    const mapped = PROTO_SELL_PRICE_TO_API[rawSell]
+    if (mapped) {
+      settings.sellPriceType = mapped
+    } else if ((SELL_PRICE_TYPES as readonly string[]).includes(rawSell)) {
+      settings.sellPriceType = rawSell as PrototypeSettings['sellPriceType']
+    }
   }
 
-  const mapName = kv.mapName ?? kv.map
+  const mapName = pick(app, ['mapName', 'map']) ?? kv.mapName ?? kv.map
   if (typeof mapName === 'string' && mapName.trim() !== '') settings.mapName = mapName
 
   return settings
 }
 
 /**
- * Extract per-species calculator configs from the settings KV map. Accepts
- * `<species>_calculator_config` keys (the assumed prototype convention) and also
- * an explicit `animalConfigs` bag if one is present.
+ * Extract per-species calculator configs from the settings KV map. Reads the
+ * real `animal_<species>` keys (animal_cows, animal_buffaloes, …) and keeps the
+ * RAW prototype inputs object; the importer translates them to the API shape.
+ * Also accepts an explicit `animalConfigs` bag (a re-export of this format).
  */
 function mapAnimalConfigs(
   kv: Record<string, unknown>,
@@ -250,11 +333,11 @@ function mapAnimalConfigs(
   const out: Record<string, Record<string, unknown>> = {}
 
   for (const species of KNOWN_SPECIES) {
-    const value = kv[`${species}${CALC_CONFIG_SUFFIX}`]
+    const value = kv[ANIMAL_CONFIG_KEYS[species]]
     if (value && typeof value === 'object') out[species] = asRecord(value)
   }
 
-  // An explicit nested bag, if the prototype stored one.
+  // An explicit nested bag, if a prior export of this format is re-imported.
   const bag = kv.animalConfigs
   if (bag && typeof bag === 'object') {
     for (const [species, cfg] of Object.entries(asRecord(bag))) {
@@ -266,12 +349,12 @@ function mapAnimalConfigs(
 }
 
 /**
- * Export the prototype data of `dbName` into a {@link PrototypeExport}. Reads ALL
- * object stores defensively; the `fields` and `settings` stores are the core
- * mapping, `machinery`/`stables` and `*_calculator_config` are optional.
+ * Export the prototype data of `dbName` into a {@link PrototypeExport}. Reads the
+ * `fields` object store and the `settings` KV store (machinery, stables, animal
+ * configs and global settings all live under settings keys). Missing keys yield
+ * empty sections rather than errors.
  *
- * Throws only when the database cannot be opened; missing stores yield empty
- * sections rather than errors.
+ * Throws only when the database cannot be opened.
  */
 export async function exportFromIndexedDb(dbName: string): Promise<PrototypeExport> {
   if (!isIndexedDbAvailable()) {
@@ -280,16 +363,19 @@ export async function exportFromIndexedDb(dbName: string): Promise<PrototypeExpo
 
   const db = await openDb(dbName)
   try {
-    const [fieldRows, machineRows, stableRows, settingsKv] = await Promise.all([
+    const [fieldRows, settingsKv] = await Promise.all([
       readStore(db, 'fields'),
-      readStore(db, 'machinery'),
-      readStore(db, 'stables'),
       readKvStore(db, 'settings'),
     ])
 
     const fields = fieldRows.map(mapField)
-    const machinery = machineRows.map(mapMachine)
-    const stables = stableRows.map(mapStable)
+
+    const machineRows = settingsKv[SETTINGS_KEYS.machinery]
+    const machinery = (Array.isArray(machineRows) ? machineRows : []).map(mapMachine)
+
+    const stableRows = settingsKv[SETTINGS_KEYS.stables]
+    const stables = (Array.isArray(stableRows) ? stableRows : []).map(mapStable)
+
     const settings = mapSettings(settingsKv)
     const animalConfigs = mapAnimalConfigs(settingsKv)
 

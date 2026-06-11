@@ -24,6 +24,9 @@ export type { ImportDeps, ImportOptions } from './lib/importMigration'
 export { resolveCropSlug, normalize, CROP_NAME_FALLBACKS } from './lib/resolveCropSlug'
 export type { ResolverCrop } from './lib/resolveCropSlug'
 
+// Prototype per-species calculator inputs → API AnimalConfigInputs encoding.
+export { translateAnimalConfig } from './lib/translateAnimalConfig'
+
 // Documented migration shape, report types and the lenient zod validator.
 export {
   prototypeExportSchema,

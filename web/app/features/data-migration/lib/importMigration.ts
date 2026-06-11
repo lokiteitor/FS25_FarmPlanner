@@ -23,6 +23,7 @@ import { put } from '~/shared/api'
 
 import { resolveCropSlug } from './resolveCropSlug'
 import type { ResolverCrop } from './resolveCropSlug'
+import { translateAnimalConfig } from './translateAnimalConfig'
 import type { ImportReport, PrototypeExport } from '../model/types'
 
 /** Options for an import run. */
@@ -102,14 +103,41 @@ const VALID_SPECIES: readonly StableSpecies[] = [
 ]
 
 /**
- * Keys that belong on the FARM, not on a per-species calculator config. If a
- * prototype leaked them into a config bag we strip them before upserting (the
- * API rejects them — see openapi AnimalConfigs).
+ * Keys that belong on the FARM, not on a per-species calculator config. The
+ * prototype stored them inside every `animal_<species>` bag; the API rejects
+ * them, so `translateAnimalConfig` drops them — we only check their presence to
+ * emit a warning.
  */
 const LEAKED_CONFIG_KEYS = ['difficulty', 'sellPriceType'] as const
 
+/**
+ * Prototype species labels (the stable `type` column is PascalCase: 'Cow',
+ * 'Chicken', …) → API species (lowercase). Already-lowercase values pass
+ * through {@link normalizeSpecies}.
+ */
+const SPECIES_ALIASES: Readonly<Record<string, StableSpecies>> = {
+  Cow: 'cow',
+  Buffalo: 'buffalo',
+  Chicken: 'chicken',
+  Sheep: 'sheep',
+  Goat: 'goat',
+  Pig: 'pig',
+  Horse: 'horse',
+}
+
 function isValidSpecies(value: string): value is StableSpecies {
   return (VALID_SPECIES as readonly string[]).includes(value)
+}
+
+/**
+ * Normalize a prototype species label to the API species, or `null` if unknown.
+ * Accepts PascalCase ('Cow') and already-lowercase ('cow') values.
+ */
+function normalizeSpecies(value: string): StableSpecies | null {
+  const trimmed = value.trim()
+  if (SPECIES_ALIASES[trimmed]) return SPECIES_ALIASES[trimmed]
+  const lower = trimmed.toLowerCase()
+  return isValidSpecies(lower) ? lower : null
 }
 
 /** Error message extractor that never throws. */
@@ -118,19 +146,9 @@ function errMessage(err: unknown): string {
   return String(err)
 }
 
-/**
- * Strip farm-level keys that leaked into a calculator config, returning a new
- * object and the list of keys removed (for a warning).
- */
-function stripLeakedKeys(
-  inputs: Record<string, unknown>,
-): { cleaned: Record<string, unknown>; removed: string[] } {
-  const removed = LEAKED_CONFIG_KEYS.filter((key) => key in inputs)
-  // Rebuild without the leaked keys (avoids dynamic `delete`).
-  const cleaned = Object.fromEntries(
-    Object.entries(inputs).filter(([key]) => !(LEAKED_CONFIG_KEYS as readonly string[]).includes(key)),
-  )
-  return { cleaned, removed }
+/** Farm-level keys leaked into a prototype calculator config (for a warning). */
+function detectLeakedKeys(inputs: Record<string, unknown>): string[] {
+  return LEAKED_CONFIG_KEYS.filter((key) => key in inputs)
 }
 
 /** Build the default deps from the real entity slice APIs + catalog store. */
@@ -242,21 +260,39 @@ export async function importPrototype(
     }
   }
 
-  // 4) Stables (optional).
+  // 4) Stables (optional). The prototype `type` is PascalCase ('Cow'); the
+  // per-stable `config` is the same raw prototype calculator bag, so we
+  // translate it to the API encoding (slugs, lowercase feedType, leaked
+  // difficulty/sellPriceType + stable link + count alias dropped).
   for (const stable of data.stables ?? []) {
     try {
-      if (!isValidSpecies(stable.species)) {
+      const species = normalizeSpecies(stable.species)
+      if (species === null) {
         report.warnings.push(
           `Establo "${stable.name}": especie desconocida "${stable.species}"; omitido.`,
         )
         continue
       }
+      const rawConfig = stable.config ?? {}
+      const removed = detectLeakedKeys(rawConfig)
+      if (removed.length > 0) {
+        report.warnings.push(
+          `Establo "${stable.name}": se eliminaron claves de partida del config (${removed.join(', ')}).`,
+        )
+      }
+      // Translate then strip the species discriminant + head count (the stable
+      // config is keyed by route species and tracks count via currentCount).
+      const translated = translateAnimalConfig(species, rawConfig)
+      const config = Object.fromEntries(
+        Object.entries(translated).filter(([key]) => key !== 'species' && key !== 'count'),
+      )
+
       await deps.createStable(farm.id, {
         name: stable.name,
-        species: stable.species,
+        species,
         maxCapacity: stable.maxCapacity,
         currentCount: stable.currentCount ?? 0,
-        config: stable.config ?? {},
+        config,
       })
       report.created.stables += 1
     } catch (err) {
@@ -278,22 +314,25 @@ export async function importPrototype(
     }
   }
 
-  // 6) Animal configs (optional) — upsert per species, stripping leaked keys.
+  // 6) Animal configs (optional) — translate the prototype `animal_<species>`
+  // inputs to the API encoding (count from numCows/numChx/…, feedType TMR→tmr,
+  // crops PascalCase→slug), dropping leaked difficulty/sellPriceType, then upsert.
   for (const [speciesRaw, rawInputs] of Object.entries(data.animalConfigs ?? {})) {
     try {
-      if (!isValidSpecies(speciesRaw)) {
+      const species = normalizeSpecies(speciesRaw)
+      if (species === null) {
         report.warnings.push(`Config de animal: especie desconocida "${speciesRaw}"; omitida.`)
         continue
       }
-      const { cleaned, removed } = stripLeakedKeys(rawInputs ?? {})
+      const removed = detectLeakedKeys(rawInputs ?? {})
       if (removed.length > 0) {
         report.warnings.push(
-          `Config de ${speciesRaw}: se eliminaron claves de partida (${removed.join(', ')}).`,
+          `Config de ${species}: se eliminaron claves de partida (${removed.join(', ')}).`,
         )
       }
-      // Ensure the discriminant matches the route species.
-      cleaned.species = speciesRaw
-      await deps.upsertAnimalConfig(farm.id, speciesRaw, cleaned)
+      // translateAnimalConfig sets the species discriminant + maps every field.
+      const inputs = translateAnimalConfig(species, rawInputs)
+      await deps.upsertAnimalConfig(farm.id, species, inputs)
       report.created.animalConfigs += 1
     } catch (err) {
       report.errors.push(`Config de ${speciesRaw}: ${errMessage(err)}`)
