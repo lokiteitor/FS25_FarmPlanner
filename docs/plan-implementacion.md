@@ -59,7 +59,6 @@ Este plan está organizado en **8 Historias de Usuario** principales, cada una c
 | **H5** | BullMQ preparado | 5 SP | 2 | Low |
 | **H6** | Frontend base (FSD, auth, estilos) | 18 SP | 4 | High |
 | **H7** | Frontend de dominio y motor de cálculo | 26 SP | 6 | High |
-| **H8** | Migración de datos desde IndexedDB | 6 SP | 2 | Medium |
 
 ---
 
@@ -602,51 +601,6 @@ Portar las 12 vistas del prototipo a FSD consumiendo la API, con el catálogo ca
 
 ---
 
-## H8: Migración de datos desde IndexedDB
-
-**Tipo**: Story
-**Prioridad**: Medium
-**Story Points**: 6 SP
-
-**Como** usuario del prototipo
-**Quiero** trasladar mis datos de IndexedDB a mi cuenta nueva
-**Para** no perder mi planificación al migrar a la aplicación real
-
-**Descripción**:
-Utilidad que exporta el contenido de IndexedDB del prototipo y lo importa contra la API normal, resolviendo nombres de cultivo en español → slug y mapeando settings globales a la farm.
-
-**Criterios de Aceptación**:
-- ✅ Exporta fields, establos, maquinaria y configs del prototipo a un JSON.
-- ✅ Importa creando una farm con la dificultad/yieldBonus/sellPrice del prototipo y sus recursos.
-- ✅ Cultivos no resolubles se reportan, no rompen la importación.
-
-**Tareas Técnicas**:
-
----
-
-### H8.1: Export desde IndexedDB
-**Tipo**: Task
-**Story Points**: 2 SP
-
-**Subtareas**:
-- [ ] Script/página en el prototipo que serializa los stores `fields` y `settings` a JSON descargable.
-
-**Dependencias**: —
-
----
-
-### H8.2: Import contra la API
-**Tipo**: Task
-**Story Points**: 4 SP
-
-**Subtareas**:
-- [ ] Utilidad en `web/` que crea farm + recursos vía API a partir del JSON.
-- [ ] Resolución nombre español → slug (mapa puntual); reporte de cultivos no resueltos.
-
-**Dependencias**: H8.1, H7.3
-
----
-
 ## Resumen de Estimación
 
 ### Por Historia
@@ -659,18 +613,16 @@ Utilidad que exporta el contenido de IndexedDB del prototipo y lo importa contra
 | H4 - API de dominio | 26 SP | 18.8% | 6 |
 | H5 - BullMQ preparado | 5 SP | 3.6% | 2 |
 | H6 - Frontend base | 18 SP | 13.0% | 4 |
-| H7 - Frontend dominio | 26 SP | 18.8% | 6 |
-| H8 - Migración de datos | 6 SP | 4.3% | 2 |
-| **TOTAL** | **138 SP** | **100%** | **32** |
+| H7 - Frontend dominio | 26 SP | 19.7% | 6 |
+| **TOTAL** | **132 SP** | **100%** | **30** |
 
 ### Por Prioridad
 
 | Prioridad | Story Points | Historias | % del Total |
 |-----------|--------------|-----------|-------------|
-| Highest | 57 SP | 3 | 41.3% |
-| High | 70 SP | 3 | 50.7% |
-| Medium | 6 SP | 1 | 4.3% |
-| Low | 5 SP | 1 | 3.6% |
+| Highest | 57 SP | 3 | 43.2% |
+| High | 70 SP | 3 | 53.0% |
+| Low | 5 SP | 1 | 3.8% |
 
 ### Estimación de Tiempo
 
@@ -703,9 +655,8 @@ Asumiendo velocidad de equipo de **30 SP por sprint (2 semanas)**:
 9. H7.1: Catálogo y motor de cálculo (6 SP)
 10. H7.2: Selector de partida y dashboard (inicio, 4 SP)
 
-### Sprint 5: Frontend de dominio y migración (22 SP)
+### Sprint 5: Frontend de dominio (16 SP)
 11. H7.2 (cierre) + H7.3 + H7.4 + H7.5 + H7.6 (resto de H7)
-12. H8: Migración de datos (6 SP)
 
 ---
 
@@ -722,7 +673,6 @@ graph TD
     H3 --> H6
     H4 --> H7[H7: Frontend dominio]
     H6 --> H7
-    H7 --> H8[H8: Migracion de datos]
 ```
 
 **Notas sobre Dependencias**:

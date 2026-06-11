@@ -321,11 +321,11 @@ Las decisiones arquitectónicas relevantes deben documentarse siguiendo el forma
 
 - **Contexto:** El prototipo identifica cultivos por su nombre en español y mantiene un mapa de traducción ad hoc (`cropTranslationMap`), frágil ante renombrados.
 - **Decisión:** La BD y la API identifican cultivos por `slug` estable en inglés (`wheat`, `barley`, `poplar`); el catálogo lleva `name_es`/`name_en` y el frontend traduce.
-- **Consecuencias:** (+) Identificadores estables entre versiones de juego e idiomas; el remapeo al cambiar `game_version` se hace por slug. (−) Migración de datos del prototipo debe resolver nombre español → slug.
+- **Consecuencias:** (+) Identificadores estables entre versiones de juego e idiomas; el remapeo al cambiar `game_version` se hace por slug.
 
 #### ADR-007 — BullMQ preparado sin jobs
 
-- **Contexto:** Se prevén trabajos asíncronos (informes, importación de savegames, limpieza), pero no forman parte del alcance v1. Añadir Redis/worker después tocaría compose, configuración y arranque.
+- **Contexto:** Se prevén trabajos asíncronos (informes, limpieza), pero no forman parte del alcance v1. Añadir Redis/worker después tocaría compose, configuración y arranque.
 - **Decisión:** Desplegar Redis y el contenedor `worker` con la conexión, una cola base y el esqueleto de procesador desde v1, sin jobs de negocio. Único job opcional permitido: limpieza periódica de `refresh_tokens` expirados.
 - **Consecuencias:** (+) Añadir el primer job real es solo código de aplicación. (−) Dos contenedores extra en runtime con uso casi nulo en v1.
 

@@ -328,5 +328,4 @@ Reglas en el cliente:
 | `app/assets/css/main.css` | `app/styles/*.scss` (ADR-F05) |
 
 - **Novedades sin equivalente en el prototipo:** páginas `login`/`register`, selector de partida (`features/farm-switcher`) y la noción de farm activa (`user_settings.active_farm_id`).
-- **Migración de datos:** utilidad one-shot que exporta IndexedDB del prototipo e importa contra la API (historia H8 del plan de implementación).
 - **Documentos relacionados:** `docs/arquitectura-api.md`, `docs/openapi.yaml`, `docs/seeds-catalogo.md`, `docs/plan-implementacion.md`.
