@@ -34,7 +34,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-fs25_planner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fs25_planner}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # PostgreSQL 18 changed the recommended mount point: the volume goes at
+      # /var/lib/postgresql (data lands in a versioned subdir), NOT
+      # /var/lib/postgresql/data — the old path makes PG18 refuse to start.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fs25_planner} -d ${POSTGRES_DB:-fs25_planner}"]
       interval: 10s
@@ -96,7 +99,9 @@ services:
         condition: service_healthy
     healthcheck:
       # node:22-alpine no trae curl; usa wget (incluido en BusyBox de Alpine).
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health || exit 1"]
+      # 127.0.0.1 (no "localhost"): localhost resuelve a ::1 (IPv6) primero y el
+      # servidor escucha en 0.0.0.0 (IPv4), lo que daría connection refused.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
