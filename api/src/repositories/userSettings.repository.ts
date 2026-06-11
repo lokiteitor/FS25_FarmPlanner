@@ -60,6 +60,41 @@ export async function getByUserId(
 }
 
 /**
+ * Return the user's settings row, inserting one with column defaults (locale
+ * 'es', theme 'system', preferences {}, active_farm_id null) if it is missing.
+ *
+ * Backs `GET /me/settings`, which must materialise the row lazily for users
+ * whose registration somehow didn't create it (docs/base-de-datos.md §3:
+ * "la fila se crea en el registro; GET /me/settings la crea con defaults si
+ * faltara"). The insert uses `onConflictDoNothing` on the PK so a concurrent
+ * creator can't make us fail with a 23505; if the insert was a no-op we re-read
+ * the row the other request wrote. Returns an always-present row.
+ */
+export async function getOrCreate(
+  userId: string,
+  tx: DbExecutor = db,
+): Promise<UserSettingsRow> {
+  const existing = await getByUserId(userId, tx);
+  if (existing) return existing;
+
+  const [inserted] = await tx
+    .insert(userSettings)
+    .values({ userId })
+    .onConflictDoNothing({ target: userSettings.userId })
+    .returning();
+  if (inserted) return inserted;
+
+  // A concurrent request created the row between our read and insert; re-read it.
+  const row = await getByUserId(userId, tx);
+  if (!row) {
+    throw new Error(
+      `Failed to get or create user_settings for user ${userId}.`,
+    );
+  }
+  return row;
+}
+
+/**
  * Set (or clear) the active farm for a user. Ownership of `farmId` is validated
  * in the service layer (422 FARM_NOT_OWNED), not here.
  */
