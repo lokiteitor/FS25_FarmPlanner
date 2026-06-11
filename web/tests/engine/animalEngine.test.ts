@@ -74,13 +74,17 @@ describe('provideStraw raises output by ~strawBonus', () => {
   })
 })
 
-describe('yield bonus scales production via (1 + bonus)', () => {
-  it('default bonus 0.425 -> factor 1.425 (== yield_bonus_scalar)', () => {
+describe('production is NOT scaled by yield bonus (prototype parity)', () => {
+  // RECONCILE: the prototype does NOT apply (1 + yieldBonus) to animal
+  // PRODUCTION (only fieldwork hectares use the bonus). productionFactor is
+  // still REPORTED as 1 + bonus, but it no longer multiplies production.
+  it('milk/year is identical at bonus 0 vs 0.425; productionFactor still reports 1.425', () => {
     const noBonus = animalProjection({ species: 'cow', count: 5, yieldBonus: 0, feedType: 'tmr' }, normalFarm, catalog)
     const def = animalProjection({ species: 'cow', count: 5, yieldBonus: 0.425, feedType: 'tmr' }, normalFarm, catalog)
-    const ratio = def.production.productLitersPerYear / noBonus.production.productLitersPerYear
-    expect(ratio).toBeCloseTo(constants.yieldBonusScalar, 8)
+    expect(def.production.productLitersPerYear).toBeCloseTo(noBonus.production.productLitersPerYear, 8)
+    // The reported factor is unchanged (1 + default bonus == yield_bonus_scalar).
     expect(def.productionFactor).toBeCloseTo(1.425, 10)
+    expect(def.productionFactor).toBeCloseTo(constants.yieldBonusScalar, 10)
   })
 })
 
@@ -201,16 +205,34 @@ describe('fieldwork breakdown', () => {
     const hay = res.fieldwork.requirements.find((r) => r.key === 'hay')!
     expect(hay.litersPerYear).toBeCloseTo(285.75 * 12 * 8, 4)
     expect(hay.hectaresNeeded).toBeGreaterThan(0)
-    // horse consumes straw -> a straw requirement exists
-    expect(res.fieldwork.requirements.some((r) => r.slug === 'straw')).toBe(true)
+    // RECONCILE: the prototype's horse fieldwork breakdown is base/hay/root only
+    // (no straw-bedding hectares), so the horse projection has NO straw
+    // requirement even when provideStraw is true. Straw is still surfaced as a
+    // CONSUMPTION line (production panel), gated on provideStraw.
+    expect(res.fieldwork.requirements.some((r) => r.slug === 'straw')).toBe(false)
+    expect(res.consumption.byKey.straw?.perYear).toBeCloseTo(80 * 12 * 8, 4)
   })
 })
 
 describe('production byKey includes slurry/manure (non-product positive rates)', () => {
-  it('cow slurry and manure annualized for the herd', () => {
-    const res = animalProjection({ species: 'cow', count: 10, yieldBonus: 0, feedType: 'tmr' }, normalFarm, catalog)
-    expect(res.production.byKey.slurry.perYear).toBeCloseTo(250 * 12 * 10, 4)
-    expect(res.production.byKey.manure.perYear).toBeCloseTo(200 * 12 * 10, 4)
+  it('cow slurry always present; manure gated on provideStraw (prototype parity)', () => {
+    // slurry is produced regardless of straw; manure (and straw bedding) only
+    // when straw is provided. NO factors/bonus on residues.
+    const withStraw = animalProjection(
+      { species: 'cow', count: 10, yieldBonus: 0, feedType: 'tmr', provideStraw: true },
+      normalFarm,
+      catalog,
+    )
+    expect(withStraw.production.byKey.slurry.perYear).toBeCloseTo(250 * 12 * 10, 4)
+    expect(withStraw.production.byKey.manure.perYear).toBeCloseTo(200 * 12 * 10, 4)
+
+    const noStraw = animalProjection(
+      { species: 'cow', count: 10, yieldBonus: 0, feedType: 'tmr', provideStraw: false },
+      normalFarm,
+      catalog,
+    )
+    expect(noStraw.production.byKey.slurry.perYear).toBeCloseTo(250 * 12 * 10, 4)
+    expect(noStraw.production.byKey.manure.perYear).toBe(0)
   })
 })
 

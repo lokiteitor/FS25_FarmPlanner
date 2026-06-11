@@ -1,65 +1,55 @@
 // shared/lib/engine/animalEngine — PURE animal projection functions (ADR-F04).
 //
 // No stores, no network: takes catalog + farm context + inputs as arguments.
-// Reconstructed from the documented constants (docs/seeds-catalogo.md §4, §5)
-// and standard FS25 herd-projection semantics, NOT ported byte-for-byte from
-// the unavailable prototype. Every assumption is documented inline.
+// PORTED BYTE-FOR-BYTE (semantically) from THE PROTOTYPE's pure engine
+//   …/planner/planner/app/utils/animalCalculations.ts
+// but PARAMETRIZED by the EngineCatalog (rates from animalType.monthlyRates,
+// productivity/tmr ratios from feedOptions, prices from product base/scalar +
+// constants.milkPriceScalars). The parity harness (tests/parity) asserts the
+// numbers match the prototype within 1e-6.
 //
-// ── Core model (per species, see seeds-catalogo §4 monthly_rates) ────────────
-//   monthly_rates are L/month PER HEAD; negative = consumption.
-//   count                 = inputs.count
-//   effectiveYieldBonus   = inputs.yieldBonus ?? farm.defaultYieldBonus
-//   productionFactor      = 1 + effectiveYieldBonus
-//     · seeds-catalogo gives yield_bonus_scalar = 1.425 alongside
-//       default_yield_bonus = 0.425, i.e. the scalar IS (1 + default bonus).
-//       We therefore generalize the production factor to (1 + bonus); with the
-//       default bonus this reproduces the documented 1.425.
-//   feedProductivityFactor (ruminants cow/buffalo) =
-//       animalType.feedOptions.productivityFactors[feedType]
+// ── CRITICAL PROTOTYPE FACTS (reconciled here) ───────────────────────────────
+//  1. Animal PRODUCTION quantities are NOT scaled by yieldBonus.
+//       cow milk      = count * rate.milk * strawBonusFactor * productivityFactor
+//       buffalo milk  = count * rate.milk * (percentProductive/100) * productivityFactor
+//       chicken eggs  = count * rate.eggs            (const per head, no factors)
+//       sheep wool    = count * rate.wool            (const per head, no factors)
+//       goat milk     = count * rate.milk            (const per head, no factors)
+//     productivityFactor (cow/buffalo) = feedOptions.productivityFactors[feedType]
 //       (tmr/simple 1.0, hay 0.8, grass 0.4; buffalo has no 'simple').
-//       Non-ruminants: 1.
-//   strawBonusFactor      = provideStraw ? (1 + constants.strawBonus) : 1
-//       (+~0.111 to OUTPUT when straw is provided; seeds-catalogo straw_bonus).
-//   difficultyScalar      = animalType.difficultyScalars[difficulty]
-//       (== income scalar: easy 3.0 / normal 1.8 / hard 1.0).
+//     strawBonusFactor = provideStraw ? (1 + constants.strawBonus) : 1, applied
+//       ONLY to cow milk (NOT buffalo, NOT other species).
+//  2. Residues/slurry/manure/straw are count * rate (NO factors, NO bonus) and
+//     GATED on provideStraw exactly as the prototype:
+//       cow:     slurry always; manure/straw gated.
+//       buffalo: slurry = provideStraw ? 2400*n : 5400*n; manure/straw gated.
+//       pig:     slurry always; straw/manure gated.
+//       horse:   straw/manure gated.
+//  3. Product revenue = productLitersYear * unitPrice * difficultyScalar where
+//       unitPrice = base * priceScalar (eggs 1.25 / wool 1.29 / goat 1.08) OR
+//       base * milkScalar for milk-type (cow/buffalo): milkScalar =
+//         sellPriceType==='max_seasonal' ? milkPriceScalars.max : .average.
+//     difficultyScalar = animalType.difficultyScalars[difficulty] (easy 3 /
+//       normal 1.8 / hard 1).
+//  4. Head sales = sellCount * salePrice (cow 3500 / buffalo 3000 / pig 2500 /
+//     horse 5000), NOT difficulty-scaled. Sheep/goat sales (salePrice 1000) are
+//     a documented v1 EXTENSION: kept in economics.salesRevenue but EXCLUDED
+//     from prototype parity (the golden carries no sheep/goat sales).
+//  5. Consumption (food) = count * |rate.food| * 12 (cow/buffalo/chicken/sheep/
+//     goat). For pig/horse the engine has no aggregate food rate; food is the
+//     SUM of the per-component liters (pig: (30+15+12+3) L/head/mo, horse:
+//     (95.25+285.75+19.0625) L/head/mo) * 12 * count, surfaced as fieldwork.
+//  6. Fieldwork hectares DO use bonusScalar = (1 + bonus) on crop/grass/silage
+//     yields, but STRAW hectares use constants.strawYieldPerM2 FLAT (no bonus).
+//     Crucial prototype quirk: the straw-BEDDING hectares are only counted in
+//     the fieldwork TOTAL for the TMR feed type (cow/buffalo). For
+//     Simple/Hay/Grass the prototype's comparable total omits straw bedding.
 //
-//   For a positive rate r (production):
-//     perYearHerd = r * 12 * count * productionFactor * feedProductivityFactor
-//                     * strawBonusFactor
-//   For a negative rate (consumption), magnitude only, scaled by count
-//   (consumption is NOT scaled by yield bonus / productivity / straw — it is the
-//   physical feed/straw the herd eats; production bonuses do not change intake).
-//
-// ── Economics ────────────────────────────────────────────────────────────────
-//   Product price per liter:
-//     · milk-type (cow/buffalo, product.priceScalar == null):
-//         price = product.basePrice * milkScalar,  milkScalar =
-//           sellPriceType==='max_seasonal' ? milkPriceScalars.max
-//                                          : milkPriceScalars.average
-//     · scaled products (eggs 1.25 / wool 1.29 / goat_milk 1.08):
-//         price = product.basePrice * product.priceScalar
-//   productRevenue = productLitersPerYear * price * difficultyScalar
-//     (difficulty scales PRODUCT revenue, like crop income).
-//   salesRevenue   = (inputs.sellCount ?? 0) * (animalType.salePrice ?? 0)
-//     · NOT scaled by difficulty by default. Rationale (seeds-catalogo §4
-//       "Pendiente"): historically cow/pig/horse sale was not difficulty-scaled;
-//       sheep/goat sale is new and we keep it consistent (no scaling). Documented
-//       and centralized so it can be flipped later.
-//   feedCost = bought feed + mineral feed costs where a price datum exists
-//     (chicken bought feed via feed_purchase_prices; ruminant TMR mineralFeed
-//     via mineral_feed_price). Grown crops have no purchase price -> 0 cost,
-//     surfaced as a fieldwork hectares requirement instead.
-//   net = productRevenue + salesRevenue - feedCost
-//
-// ── Fieldwork (feed/straw requirements to sustain the herd) ──────────────────
-//   We expose annual liters needed (and hectares of field when a yield is known)
-//   per requirement. Hectares use catalog yields:
-//     · silage crop  -> silageCrop.yieldPerM2 * chaffFactor * (1 + bonus)
-//     · grass/hay    -> constants.grassYieldPerM2 * (1 + bonus)
-//     · straw        -> constants.strawYieldPerM2 * (1 + bonus)
-//     · grain/root/protein/base feed crops -> crop.yieldPerM2 * (1 + bonus)
-//   (1 + bonus) is applied because the field is harvested with the same yield
-//   bonus the farm uses for its crops.
+// ── Public shape ─────────────────────────────────────────────────────────────
+//   AnimalProjectionResult is unchanged (production.byKey,
+//   production.productLitersPerYear, consumption.byKey,
+//   economics.{productRevenue,salesRevenue,feedCost,net,productPricePerLiter},
+//   fieldwork.{requirements[],totalHectaresNeeded}) so the widgets compile.
 
 import type {
   AnimalInputs,
@@ -106,16 +96,77 @@ export function strawBonusFactor(
 }
 
 /** Yield-per-m² used to convert a feed requirement into hectares of field. */
-function hectaresForLiters(litersPerYear: number, yieldPerM2WithBonus: number): number {
-  if (yieldPerM2WithBonus <= 0) return 0
-  const m2 = litersPerYear / yieldPerM2WithBonus
-  return m2 / 10000
+function hectaresForLiters(litersPerYear: number, yieldPerM2: number): number {
+  if (yieldPerM2 <= 0) return 0
+  return litersPerYear / yieldPerM2 / 10000
+}
+
+/**
+ * Effective MONTHLY residue/slurry/manure/straw rate per head, after the
+ * prototype's provideStraw gating. Returns the value to use in place of the raw
+ * catalog rate for a given (species, key). Keys not listed pass through.
+ */
+function gatedMonthlyRate(
+  species: AnimalInputs['species'],
+  key: string,
+  rawRate: number,
+  provideStraw: boolean,
+): number {
+  switch (species) {
+    case 'cow':
+      // slurry always; manure/straw gated.
+      if (key === 'manure' || key === 'straw') return provideStraw ? rawRate : 0
+      return rawRate
+    case 'buffalo':
+      // slurry = provideStraw ? 2400 : 5400 ; manure/straw gated.
+      if (key === 'slurry') return provideStraw ? rawRate : 5400
+      if (key === 'manure' || key === 'straw') return provideStraw ? rawRate : 0
+      return rawRate
+    case 'pig':
+      // slurry always; straw/manure gated.
+      if (key === 'straw' || key === 'manure') return provideStraw ? rawRate : 0
+      return rawRate
+    case 'horse':
+      // straw/manure gated.
+      if (key === 'straw' || key === 'manure') return provideStraw ? rawRate : 0
+      return rawRate
+    default:
+      return rawRate
+  }
+}
+
+/**
+ * The OUTPUT multiplier applied to the PRODUCT line only (milk/eggs/wool),
+ * matching the prototype per species:
+ *   cow milk      → productivityFactor * strawBonusFactor
+ *   buffalo milk  → productivityFactor * (percentProductive/100)
+ *   chicken/sheep/goat → 1 (const per head)
+ * Production is NEVER scaled by yield bonus.
+ */
+function productOutputMultiplier(
+  animalType: EngineAnimalType,
+  inputs: AnimalInputs,
+  constants: EngineConstants,
+): number {
+  switch (animalType.species) {
+    case 'cow': {
+      const prod = feedProductivityFactor(animalType, inputs.feedType)
+      const straw = strawBonusFactor(inputs.provideStraw, constants)
+      return prod * straw
+    }
+    case 'buffalo': {
+      const prod = feedProductivityFactor(animalType, inputs.feedType)
+      const pct = (inputs.percentProductive ?? 100) / 100
+      return prod * pct
+    }
+    default:
+      return 1
+  }
 }
 
 /**
  * Project a herd of one species. Returns production, consumption, economics and
- * a fieldwork breakdown. `animalType` MUST match `inputs.species` (caller passes
- * the catalog entry for that species).
+ * a fieldwork breakdown.
  */
 export function animalProjection(
   inputs: AnimalInputs,
@@ -141,8 +192,9 @@ export function projectFor(
 ): AnimalProjectionResult {
   const constants = catalog.constants
   const count = inputs.count
+  const provideStraw = inputs.provideStraw === true
   const bonus = animalYieldBonus(inputs.yieldBonus, farm)
-  const productionFactor = 1 + bonus
+  const productionFactor = 1 + bonus // reported only; production is NOT scaled by it
   const feedFactor = feedProductivityFactor(animalType, inputs.feedType)
   const strawFactor = strawBonusFactor(inputs.provideStraw, constants)
   const difficultyScalar = animalType.difficultyScalars[farm.difficulty]
@@ -156,36 +208,42 @@ export function projectFor(
   }
   const consumption: AnimalProjectionResult['consumption'] = { byKey: {} }
 
-  // Output multiplier (production bonuses): yield bonus × feed productivity × straw.
-  const outputMultiplier = productionFactor * feedFactor * strawFactor
   const productSlug = animalType.product?.slug ?? null
   // The monthly_rates production key for the sellable product is NOT always the
   // product slug: cow/buffalo/goat all produce under the 'milk' rate key while
-  // their product slugs are 'milk'/'buffalo_milk'/'goat_milk' respectively
-  // (docs/seeds-catalogo.md §4). eggs/wool match directly. Resolve the rate key
-  // so buffalo/goat product revenue isn't silently zeroed.
+  // their product slugs are 'milk'/'buffalo_milk'/'goat_milk' (the catalog
+  // monthlyRates key is 'milk' for all three). eggs/wool match directly.
   const productRateKey = productSlug
     ? productSlug.endsWith('milk')
       ? 'milk'
       : productSlug
     : null
 
-  for (const [key, rate] of Object.entries(animalType.monthlyRates)) {
-    if (rate >= 0) {
-      const perMonth = rate * count * outputMultiplier
-      const perYear = perMonth * MONTHS_PER_YEAR
-      production.byKey[key] = { perMonth, perYear }
-      // The product line (milk/eggs/wool) drives revenue.
-      if (productRateKey && key === productRateKey) {
+  // The PRODUCT output multiplier (per-species; never the yield bonus).
+  const prodMultiplier = productOutputMultiplier(animalType, inputs, constants)
+
+  for (const [key, rawRate] of Object.entries(animalType.monthlyRates)) {
+    if (rawRate >= 0) {
+      const isProduct =
+        (productRateKey && key === productRateKey) ||
+        (!productRateKey && (key === 'milk' || key === 'eggs' || key === 'wool'))
+      if (isProduct) {
+        // PRODUCT line: count * rate * per-species multiplier (NO yield bonus).
+        const perMonth = rawRate * count * prodMultiplier
+        const perYear = perMonth * MONTHS_PER_YEAR
+        production.byKey[key] = { perMonth, perYear }
         production.productLitersPerMonth = perMonth
         production.productLitersPerYear = perYear
-      } else if (!productRateKey && (key === 'milk' || key === 'eggs' || key === 'wool')) {
-        // Defensive: if product is null but a known product rate exists.
-        production.productLitersPerMonth = perMonth
-        production.productLitersPerYear = perYear
+      } else {
+        // Residue (slurry/manure): count * GATED rate, NO factors, NO bonus.
+        const rate = gatedMonthlyRate(animalType.species, key, rawRate, provideStraw)
+        const perMonth = rate * count
+        const perYear = perMonth * MONTHS_PER_YEAR
+        production.byKey[key] = { perMonth, perYear }
       }
     } else {
-      // Consumption: magnitude, scaled by herd size only (intake is physical).
+      // Consumption: magnitude of the GATED rate, scaled by herd size only.
+      const rate = gatedMonthlyRate(animalType.species, key, rawRate, provideStraw)
       const perMonth = Math.abs(rate) * count
       const perYear = perMonth * MONTHS_PER_YEAR
       consumption.byKey[key] = { perMonth, perYear }
@@ -198,7 +256,8 @@ export function projectFor(
 
   const sellCount = inputs.sellCount ?? 0
   const salePrice = animalType.salePrice ?? 0
-  // Sale price is NOT scaled by difficulty (see header rationale).
+  // Sale price is NOT scaled by difficulty (prototype: cow/buffalo/pig/horse
+  // sales are flat). Sheep/goat sales are a v1 extension (excluded from parity).
   const salesRevenue = sellCount * salePrice
 
   const fieldwork = computeFieldwork(animalType, inputs, farm, catalog, consumption)
@@ -252,17 +311,10 @@ export function computeProductPrice(
 }
 
 /**
- * Build the fieldwork / feed-cost breakdown. Per species:
- *  - cow/buffalo (ruminant): TMR ration via feedOptions.tmrRatios (hay, silage,
- *    straw, mineralFeed) applied to the herd's annual food consumption; hay &
- *    grass split via grassHarvests is simplified to a hay requirement; mineral
- *    feed costed via constants.mineralFeedPrice.
- *  - chicken: boughtFeedPercent of food bought (costed via feed_purchase_prices),
- *    the rest grown (grownCrop -> hectares).
- *  - pig/horse: per-component litersPerAnimalMonth * 12 * count, mapped to the
- *    selected crop slug -> hectares. horse also has a hay component.
- *  - sheep/goat: only food consumption -> grass/hay hectares (grassHarvests).
- * Straw consumption (cow/buffalo/pig/horse) -> straw hectares.
+ * Build the fieldwork / feed-cost breakdown, ported from the prototype per
+ * species. Hectares use bonus on crop/grass/silage yields; straw hectares use
+ * constants.strawYieldPerM2 FLAT (no bonus). The straw-BEDDING hectares are only
+ * counted in the total for the TMR feed type (cow/buffalo) — a prototype quirk.
  */
 function computeFieldwork(
   animalType: EngineAnimalType,
@@ -274,6 +326,9 @@ function computeFieldwork(
   const constants = catalog.constants
   const bonus = animalYieldBonus(inputs.yieldBonus, farm)
   const bonusMul = 1 + bonus
+  const grassYield = constants.grassYieldPerM2 * bonusMul
+  const strawYield = constants.strawYieldPerM2 // FLAT, no bonus
+  const grassHarvests = inputs.grassHarvests ?? 1
   const reqs: FieldworkRequirement[] = []
 
   const cropYield = (slug: string): number => {
@@ -288,24 +343,15 @@ function computeFieldwork(
   const foodLitersPerYear = consumption.byKey.food?.perYear ?? 0
   const strawLitersPerYear = consumption.byKey.straw?.perYear ?? 0
 
-  // ── Straw requirement (any species that consumes straw) ────────────────────
-  if (strawLitersPerYear > 0) {
-    const yieldWithBonus = constants.strawYieldPerM2 * bonusMul
-    reqs.push({
-      key: 'straw',
-      slug: 'straw',
-      litersPerYear: strawLitersPerYear,
-      hectaresNeeded: hectaresForLiters(strawLitersPerYear, yieldWithBonus),
-    })
-  }
-
   switch (animalType.species) {
     case 'cow':
     case 'buffalo': {
-      // TMR ration: split the annual food into hay/silage/straw/mineral by ratio.
+      const feedType = inputs.feedType ?? 'tmr'
       const ratios = animalType.feedOptions.tmrRatios
-      if (ratios && foodLitersPerYear > 0) {
-        const silageSlug = inputs.silageCrop ?? animalType.feedOptions.silageCrops?.[0]
+      const silageSlug = inputs.silageCrop ?? animalType.feedOptions.silageCrops?.[0]
+
+      if (feedType === 'tmr' && ratios && foodLitersPerYear > 0) {
+        // TMR ration split: hay/silage/straw via ratios; mineral feed bought.
         const hayL = foodLitersPerYear * ratios.hay
         const silageL = foodLitersPerYear * ratios.silage
         const tmrStrawL = foodLitersPerYear * ratios.straw
@@ -315,7 +361,7 @@ function computeFieldwork(
           key: 'hay',
           slug: 'grass',
           litersPerYear: hayL,
-          hectaresNeeded: hectaresForLiters(hayL, constants.grassYieldPerM2 * bonusMul),
+          hectaresNeeded: hectaresForLiters(hayL, grassYield * grassHarvests),
         })
         if (silageSlug) {
           reqs.push({
@@ -329,7 +375,7 @@ function computeFieldwork(
           key: 'tmr-straw',
           slug: 'straw',
           litersPerYear: tmrStrawL,
-          hectaresNeeded: hectaresForLiters(tmrStrawL, constants.strawYieldPerM2 * bonusMul),
+          hectaresNeeded: hectaresForLiters(tmrStrawL, strawYield),
         })
         reqs.push({
           key: 'mineralFeed',
@@ -337,6 +383,39 @@ function computeFieldwork(
           litersPerYear: mineralL,
           // Mineral feed is bought: cost via mineral_feed_price; no field needed.
           costPerYear: mineralL * constants.mineralFeedPrice,
+        })
+        // Straw bedding hectares are ONLY counted (in the total) for TMR.
+        if (strawLitersPerYear > 0) {
+          reqs.push({
+            key: 'straw-bedding',
+            slug: 'straw',
+            litersPerYear: strawLitersPerYear,
+            hectaresNeeded: hectaresForLiters(strawLitersPerYear, strawYield),
+          })
+        }
+      } else if (feedType === 'simple' && foodLitersPerYear > 0) {
+        // Simple feed: grass + silage (NO straw bedding counted in the total).
+        reqs.push({
+          key: 'grass',
+          slug: 'grass',
+          litersPerYear: foodLitersPerYear,
+          hectaresNeeded: hectaresForLiters(foodLitersPerYear, grassYield * grassHarvests),
+        })
+        if (silageSlug) {
+          reqs.push({
+            key: `silage:${silageSlug}`,
+            slug: silageSlug,
+            litersPerYear: foodLitersPerYear,
+            hectaresNeeded: hectaresForLiters(foodLitersPerYear, silageYield(silageSlug)),
+          })
+        }
+      } else if ((feedType === 'hay' || feedType === 'grass') && foodLitersPerYear > 0) {
+        // Direct hay/grass: a single grass requirement (NO straw bedding).
+        reqs.push({
+          key: feedType === 'hay' ? 'hay' : 'grass',
+          slug: 'grass',
+          litersPerYear: foodLitersPerYear,
+          hectaresNeeded: hectaresForLiters(foodLitersPerYear, grassYield * grassHarvests),
         })
       }
       break
@@ -386,11 +465,12 @@ function computeFieldwork(
         const litersPerYear = comp.litersPerAnimalMonth * MONTHS_PER_YEAR * inputs.count
         if (litersPerYear <= 0) continue
         if (name === 'hay') {
+          // Hay → grass yield × grassHarvests (prototype horse hay path).
           reqs.push({
             key: 'hay',
             slug: 'grass',
             litersPerYear,
-            hectaresNeeded: hectaresForLiters(litersPerYear, constants.grassYieldPerM2 * bonusMul),
+            hectaresNeeded: hectaresForLiters(litersPerYear, grassYield * grassHarvests),
           })
           continue
         }
@@ -407,13 +487,13 @@ function computeFieldwork(
 
     case 'sheep':
     case 'goat': {
-      // Only food consumption -> grass/hay hectares (harvested as grass).
+      // Only food consumption → grass hectares (grassYield × grassHarvests).
       if (foodLitersPerYear > 0) {
         reqs.push({
           key: 'grass',
           slug: 'grass',
           litersPerYear: foodLitersPerYear,
-          hectaresNeeded: hectaresForLiters(foodLitersPerYear, constants.grassYieldPerM2 * bonusMul),
+          hectaresNeeded: hectaresForLiters(foodLitersPerYear, grassYield * grassHarvests),
         })
       }
       break

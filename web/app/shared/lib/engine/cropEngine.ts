@@ -19,8 +19,14 @@
 //   grossIncome           = yieldLiters * pricePerLiter * incomeScalar
 //   incomeScalar          = constants.incomeDifficultyScalars[difficulty]
 //   seedLitersNeeded      = areaM2 * crop.seedRate   (monetary cost OUT OF SCOPE)
-//   yieldTons (normal)    = yieldLiters * crop.weightPerLiter
-//   yieldTons (silage)    = yieldLiters * constants.silageWeight
+//   yieldM3               = yieldLiters / 1000        (1 m³ = 1000 L)
+//   yieldTons (normal)    = yieldM3 * crop.weightPerLiter   (PROTO: m³ * weight)
+//   yieldTons (silage)    = yieldM3 * constants.silageWeight
+//
+// NOTE: yieldTons is m³-based (yieldLiters / 1000 * weight), matching the
+// prototype's `calculateYieldTons(m3, weight)`. The earlier reconstruction used
+// liters * weight (1000× too large); this is now corrected. `yieldLiters` (the
+// raw harvest volume the UI shows in the "Rendimiento (L)" column) is unchanged.
 
 import type {
   ByDifficulty,
@@ -157,22 +163,38 @@ export function cropProjection(
 
   let yieldLiters: number
   let pricePerLiter: number
-  let yieldTons: number
-  let income: ByDifficulty
+  let weightPerLiter: number
+  let basePrice: number
+  let maxSeasonalPrice: number
 
   if (silage) {
     // ── Silage path ─────────────────────────────────────────────────────────
+    // Silage has no seasonal price path: baseline and max-seasonal both use the
+    // constant silage price (matching the prototype's SILAGE_PRICE / maxMult=1).
     yieldLiters = silageYieldLiters(silage, area, bonus)
+    weightPerLiter = catalog.constants.silageWeight
+    basePrice = catalog.constants.silagePrice
+    maxSeasonalPrice = catalog.constants.silagePrice
     pricePerLiter = catalog.constants.silagePrice
-    yieldTons = yieldLiters * catalog.constants.silageWeight
-    income = grossByDifficulty(yieldLiters, pricePerLiter, incomeScalar)
   } else {
     // ── Normal crop path ─────────────────────────────────────────────────────
     yieldLiters = cropYieldLiters(crop, area, bonus)
+    weightPerLiter = crop.weightPerLiter
+    basePrice = cropPricePerLiter(crop, 'baseline')
+    maxSeasonalPrice = cropPricePerLiter(crop, 'max_seasonal')
     pricePerLiter = cropPricePerLiter(crop, farm.sellPriceType)
-    yieldTons = yieldLiters * crop.weightPerLiter
-    income = grossByDifficulty(yieldLiters, pricePerLiter, incomeScalar)
   }
+
+  const yieldM3 = yieldLiters / 1000
+  const yieldTons = yieldM3 * weightPerLiter
+
+  // Income tables: baseline (priceMult=1) and max-seasonal are always provided
+  // so the comparison table can render both regardless of farm.sellPriceType.
+  const incomeBaseline = grossByDifficulty(yieldLiters, basePrice, incomeScalar)
+  const incomeMaxSeasonal = grossByDifficulty(yieldLiters, maxSeasonalPrice, incomeScalar)
+  // The table shown for the active farm uses its sellPriceType.
+  const incomeByDifficulty =
+    farm.sellPriceType === 'max_seasonal' ? incomeMaxSeasonal : incomeBaseline
 
   return {
     slug: crop.slug,
@@ -181,10 +203,13 @@ export function cropProjection(
     effectiveYieldBonus: bonus,
     isSilage,
     yieldLiters,
+    yieldM3,
     yieldTons,
     pricePerLiter,
     grossIncome: yieldLiters * pricePerLiter * scalarForFarm,
-    incomeByDifficulty: income,
+    incomeByDifficulty,
+    incomeBaseline,
+    incomeMaxSeasonal,
     seedLitersNeeded: seedLitersNeeded(crop, area),
   }
 }

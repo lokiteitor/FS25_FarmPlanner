@@ -148,14 +148,32 @@ export interface CropProjectionResult {
   isSilage: boolean
   /** Total harvested liters for the field (post yield-bonus). */
   yieldLiters: number
-  /** Harvested tonnage (liters * weight per liter, or silage weight). */
+  /** Total harvested volume in m³ (= yieldLiters / 1000). */
+  yieldM3: number
+  /** Harvested tonnage (= yieldM3 * weight per liter, or silage weight). */
   yieldTons: number
-  /** Effective price per liter (pre difficulty scalar). */
+  /** Effective price per liter (pre difficulty scalar), at the farm's sellPriceType. */
   pricePerLiter: number
-  /** Gross income at the farm's difficulty. */
+  /** Gross income at the farm's difficulty and sellPriceType. */
   grossIncome: number
-  /** Gross income at each difficulty (comparison table). */
+  /**
+   * Gross income at each difficulty, at the farm's sellPriceType (kept for
+   * widgets/crop-comparison-table which renders the table for the active farm).
+   */
   incomeByDifficulty: ByDifficulty
+  /**
+   * Gross income at each difficulty using the BASELINE price (priceMult = 1).
+   * Provided regardless of farm.sellPriceType so the comparison table can show
+   * both baseline and max-seasonal columns. For silage this equals
+   * incomeMaxSeasonal (silage has no seasonal price path).
+   */
+  incomeBaseline: ByDifficulty
+  /**
+   * Gross income at each difficulty using the MAX SEASONAL price
+   * (priceMult = crop.maxPriceFactor; silage uses the constant silage price, so
+   * its max-seasonal equals its baseline).
+   */
+  incomeMaxSeasonal: ByDifficulty
   /** Seed liters needed to plant the field (monetary cost is out of scope). */
   seedLitersNeeded: number
 }
@@ -179,6 +197,13 @@ export interface AnimalInputs {
   grassHarvests?: number
   /** Ruminants: silage crop slug used in the TMR ration. */
   silageCrop?: string | null
+  /**
+   * Buffalo: percentage of the herd that is lactating/productive (0..100).
+   * INTERNAL engine field only — the API/openapi BuffaloInputs contract has no
+   * such field, so it defaults to 100 when omitted (prototype parity). Do NOT
+   * surface this on the API payload types.
+   */
+  percentProductive?: number
   /** Heads sold (cow/buffalo/sheep/goat/pig/horse). */
   sellCount?: number
   /** Chicken: % of feed bought (0..100). */

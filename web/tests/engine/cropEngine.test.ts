@@ -104,8 +104,45 @@ describe('cropProjection — normal crop', () => {
     expect(result.grossIncome).toBeCloseTo(result.incomeByDifficulty.normal, 6)
   })
 
-  it('yieldTons = liters * weightPerLiter', () => {
-    expect(result.yieldTons).toBeCloseTo(result.yieldLiters * wheat.weightPerLiter, 6)
+  it('yieldM3 = liters / 1000', () => {
+    expect(result.yieldM3).toBeCloseTo(result.yieldLiters / 1000, 6)
+  })
+
+  it('yieldTons = m³ * weightPerLiter (proto units, not liters * weight)', () => {
+    expect(result.yieldTons).toBeCloseTo(result.yieldM3 * wheat.weightPerLiter, 6)
+    // explicitly NOT liters * weight (that was the 1000× bug)
+    expect(result.yieldTons).toBeCloseTo((result.yieldLiters / 1000) * wheat.weightPerLiter, 6)
+  })
+})
+
+describe('cropProjection — baseline/maxSeasonal income tables', () => {
+  it('always exposes both tables regardless of farm.sellPriceType', () => {
+    const base = cropProjection(wheat, { hectares: 10 }, normalFarm, catalog)
+    const liters = cropYieldLiters(wheat, areaM2(10), 0.425)
+    // baseline uses basePrice; maxSeasonal multiplies by maxPriceFactor.
+    expect(base.incomeBaseline.hard).toBeCloseTo(liters * wheat.basePrice, 6)
+    expect(base.incomeMaxSeasonal.hard).toBeCloseTo(
+      liters * wheat.basePrice * wheat.maxPriceFactor,
+      6,
+    )
+    // incomeByDifficulty follows the farm (baseline farm => equals incomeBaseline).
+    expect(base.incomeByDifficulty.hard).toBeCloseTo(base.incomeBaseline.hard, 6)
+  })
+
+  it('max_seasonal farm: incomeByDifficulty equals incomeMaxSeasonal', () => {
+    const max = cropProjection(wheat, { hectares: 10 }, maxSeasonalFarm, catalog)
+    expect(max.incomeByDifficulty.normal).toBeCloseTo(max.incomeMaxSeasonal.normal, 6)
+    // both tables still present and distinct for a crop with maxPriceFactor > 1
+    expect(max.incomeMaxSeasonal.hard / max.incomeBaseline.hard).toBeCloseTo(
+      wheat.maxPriceFactor,
+      8,
+    )
+  })
+
+  it('silage: max-seasonal equals baseline (no seasonal silage path)', () => {
+    const sil = cropProjection(poplar, { hectares: 10, isSilage: true }, maxSeasonalFarm, catalog)
+    expect(sil.incomeMaxSeasonal.easy).toBeCloseTo(sil.incomeBaseline.easy, 6)
+    expect(sil.incomeByDifficulty.easy).toBeCloseTo(sil.incomeBaseline.easy, 6)
   })
 })
 
@@ -144,8 +181,8 @@ describe('cropProjection — silage path', () => {
     expect(res.yieldLiters).toBeCloseTo(expectedLiters, 2)
     expect(res.pricePerLiter).toBe(constants.silagePrice)
     expect(res.grossIncome).toBeCloseTo(expectedLiters * constants.silagePrice * 1.8, 2)
-    // tonnage uses silage weight, not the crop weightPerLiter
-    expect(res.yieldTons).toBeCloseTo(expectedLiters * constants.silageWeight, 4)
+    // tonnage uses silage weight, not the crop weightPerLiter; m³-based (÷1000)
+    expect(res.yieldTons).toBeCloseTo((expectedLiters / 1000) * constants.silageWeight, 6)
   })
 
   it('corn silage differs from corn grain (chaff factor 7.8)', () => {

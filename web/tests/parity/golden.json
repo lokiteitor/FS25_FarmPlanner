@@ -1,0 +1,1467 @@
+[
+  {
+    "category": "crop",
+    "label": "wheat normal bonus=0",
+    "contractInputs": {
+      "slug": "wheat",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 111.25,
+      "yieldTons": 86.775,
+      "incomeBaseline": {
+        "easy": 112473.75,
+        "normal": 67484.25,
+        "hard": 37491.25
+      },
+      "incomeMaxSeasonal": {
+        "easy": 136093.2375,
+        "normal": 81655.9425,
+        "hard": 45364.4125
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "wheat normal bonus=0.425",
+    "contractInputs": {
+      "slug": "wheat",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 158.53125,
+      "yieldTons": 123.654375,
+      "incomeBaseline": {
+        "easy": 160275.09375,
+        "normal": 96165.05625000001,
+        "hard": 53425.03125
+      },
+      "incomeMaxSeasonal": {
+        "easy": 193932.8634375,
+        "normal": 116359.7180625,
+        "hard": 64644.2878125
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "corn normal bonus=0",
+    "contractInputs": {
+      "slug": "corn",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 115,
+      "yieldTons": 92,
+      "incomeBaseline": {
+        "easy": 131100,
+        "normal": 78660,
+        "hard": 43700
+      },
+      "incomeMaxSeasonal": {
+        "easy": 174363,
+        "normal": 104617.8,
+        "hard": 58121
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "corn normal bonus=0.425",
+    "contractInputs": {
+      "slug": "corn",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 163.875,
+      "yieldTons": 131.1,
+      "incomeBaseline": {
+        "easy": 186817.5,
+        "normal": 112090.5,
+        "hard": 62272.5
+      },
+      "incomeMaxSeasonal": {
+        "easy": 248467.27500000002,
+        "normal": 149080.36500000002,
+        "hard": 82822.425
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "poplar normal bonus=0",
+    "contractInputs": {
+      "slug": "poplar",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 2485.125,
+      "yieldTons": 869.7937499999999,
+      "incomeBaseline": {
+        "easy": 2385720,
+        "normal": 1431432,
+        "hard": 795240
+      },
+      "incomeMaxSeasonal": {
+        "easy": 4031866.8,
+        "normal": 2419120.0799999996,
+        "hard": 1343955.5999999999
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "poplar normal bonus=0.425",
+    "contractInputs": {
+      "slug": "poplar",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 3541.303125,
+      "yieldTons": 1239.4560937499998,
+      "incomeBaseline": {
+        "easy": 3399651,
+        "normal": 2039790.6,
+        "hard": 1133217
+      },
+      "incomeMaxSeasonal": {
+        "easy": 5745410.1899999995,
+        "normal": 3447246.114,
+        "hard": 1915136.73
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "poplar silage bonus=0",
+    "contractInputs": {
+      "slug": "poplar",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": true
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 2485.125,
+      "yieldTons": 745.5375,
+      "incomeBaseline": {
+        "easy": 902100.375,
+        "normal": 541260.225,
+        "hard": 300700.125
+      },
+      "incomeMaxSeasonal": {
+        "easy": 902100.375,
+        "normal": 541260.225,
+        "hard": 300700.125
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "poplar silage bonus=0.425",
+    "contractInputs": {
+      "slug": "poplar",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": true
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 3541.303125,
+      "yieldTons": 1062.3909374999998,
+      "incomeBaseline": {
+        "easy": 1285493.0343749998,
+        "normal": 771295.8206249999,
+        "hard": 428497.678125
+      },
+      "incomeMaxSeasonal": {
+        "easy": 1285493.0343749998,
+        "normal": 771295.8206249999,
+        "hard": 428497.678125
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "onion normal bonus=0",
+    "contractInputs": {
+      "slug": "onion",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 875,
+      "yieldTons": 875,
+      "incomeBaseline": {
+        "easy": 1968750,
+        "normal": 1181250,
+        "hard": 656250
+      },
+      "incomeMaxSeasonal": {
+        "easy": 5906250,
+        "normal": 3543750,
+        "hard": 1968750
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "onion normal bonus=0.425",
+    "contractInputs": {
+      "slug": "onion",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": false
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 1246.875,
+      "yieldTons": 1246.875,
+      "incomeBaseline": {
+        "easy": 2805468.75,
+        "normal": 1683281.25,
+        "hard": 935156.25
+      },
+      "incomeMaxSeasonal": {
+        "easy": 8416406.25,
+        "normal": 5049843.75,
+        "hard": 2805468.75
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "grass silage bonus=0",
+    "contractInputs": {
+      "slug": "grass",
+      "hectares": 12.5,
+      "yieldBonus": 0,
+      "isSilage": true
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 546.25,
+      "yieldTons": 163.875,
+      "incomeBaseline": {
+        "easy": 198288.75,
+        "normal": 118973.25,
+        "hard": 66096.25
+      },
+      "incomeMaxSeasonal": {
+        "easy": 198288.75,
+        "normal": 118973.25,
+        "hard": 66096.25
+      }
+    }
+  },
+  {
+    "category": "crop",
+    "label": "grass silage bonus=0.425",
+    "contractInputs": {
+      "slug": "grass",
+      "hectares": 12.5,
+      "yieldBonus": 0.425,
+      "isSilage": true
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "yieldM3": 778.40625,
+      "yieldTons": 233.521875,
+      "incomeBaseline": {
+        "easy": 282561.46875,
+        "normal": 169536.88125,
+        "hard": 94187.15625
+      },
+      "incomeMaxSeasonal": {
+        "easy": 282561.46875,
+        "normal": 169536.88125,
+        "hard": 94187.15625
+      }
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow tmr straw=true normal baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 80999.999919,
+      "milkRevenueYear": 102400.19986357981,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 8640.0000001728,
+      "tmrTotalHectares": 2.9707696013489095,
+      "fieldworkHectares": 2.9707696013489095
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow tmr straw=false normal baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 72900,
+      "milkRevenueYear": 92160.179969382,
+      "slurryYear": 135000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 8640.0000001728,
+      "tmrTotalHectares": 1.9925087317836923,
+      "fieldworkHectares": 1.9925087317836923
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow tmr straw=true easy max_seasonal",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 80999.999919,
+      "milkRevenueYear": 185408.99981459096,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 8640.0000001728,
+      "tmrTotalHectares": 2.9707696013489095,
+      "fieldworkHectares": 2.9707696013489095
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow tmr straw=true hard baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "hard",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 80999.999919,
+      "milkRevenueYear": 56888.999924211,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 8640.0000001728,
+      "tmrTotalHectares": 2.9707696013489095,
+      "fieldworkHectares": 2.9707696013489095
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow simple straw=true normal baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "simple",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 80999.999919,
+      "milkRevenueYear": 102400.19986357981,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 3.365789936908809
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow simple straw=false easy baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "simple",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 72900,
+      "milkRevenueYear": 153600.29994896997,
+      "slurryYear": 135000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 3.365789936908809
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow simple straw=true normal max_seasonal",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "simple",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 80999.999919,
+      "milkRevenueYear": 111245.3998887546,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 3.365789936908809
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow hay straw=true normal baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "hay",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 64799.9999352,
+      "milkRevenueYear": 81920.15989086386,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 1.5175237865831626
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow hay straw=false hard max_seasonal",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "hay",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "hard",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 58320,
+      "milkRevenueYear": 44498.16,
+      "slurryYear": 135000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 1.5175237865831626
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow grass straw=true easy baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "grass",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 32399.9999676,
+      "milkRevenueYear": 68266.7999090532,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 1.5175237865831626
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow grass straw=false normal baseline",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "grass",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 29160,
+      "milkRevenueYear": 36864.0719877528,
+      "slurryYear": 135000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 1.5175237865831626
+    }
+  },
+  {
+    "category": "cow",
+    "label": "cow grass straw=true hard max_seasonal",
+    "contractInputs": {
+      "species": "cow",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "grass",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5,
+      "breed": "holstein"
+    },
+    "farmContext": {
+      "difficulty": "hard",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 32399.9999676,
+      "milkRevenueYear": 24721.1999752788,
+      "slurryYear": 135000,
+      "manureYear": 108000,
+      "strawYear": -51300,
+      "foodYear": -189000,
+      "salesYear": 17500,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 1.5175237865831626
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo tmr straw=true normal baseline",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 2214000,
+      "milkRevenueYear": 13994693.995350601,
+      "slurryYear": 1296000,
+      "manureYear": 1944000,
+      "strawYear": -108000,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 259200.00000518397,
+      "tmrTotalHectares": 61.83475852101649,
+      "fieldworkHectares": 61.83475852101649
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo tmr straw=false easy max_seasonal",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 2214000,
+      "milkRevenueYear": 25339230,
+      "slurryYear": 2916000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 259200.00000518397,
+      "tmrTotalHectares": 59.77526195351077,
+      "fieldworkHectares": 59.77526195351077
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo tmr straw=true hard baseline",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "tmr",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "hard",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 2214000,
+      "milkRevenueYear": 7774829.997417,
+      "slurryYear": 1296000,
+      "manureYear": 1944000,
+      "strawYear": -108000,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 259200.00000518397,
+      "tmrTotalHectares": 61.83475852101649,
+      "fieldworkHectares": 61.83475852101649
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo hay straw=true normal baseline",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "hay",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 1771200,
+      "milkRevenueYear": 11195755.196280481,
+      "slurryYear": 1296000,
+      "manureYear": 1944000,
+      "strawYear": -108000,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 45.52571359749488
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo hay straw=false normal max_seasonal",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "hay",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "max_seasonal"
+    },
+    "expected": {
+      "milkLitersYear": 1771200,
+      "milkRevenueYear": 12162830.4,
+      "slurryYear": 2916000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 45.52571359749488
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo grass straw=true easy baseline",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "grass",
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 885600,
+      "milkRevenueYear": 9329795.9969004,
+      "slurryYear": 1296000,
+      "manureYear": 1944000,
+      "strawYear": -108000,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 45.52571359749488
+    }
+  },
+  {
+    "category": "buffalo",
+    "label": "buffalo grass straw=false hard baseline",
+    "contractInputs": {
+      "species": "buffalo",
+      "count": 45,
+      "yieldBonus": 0.425,
+      "feedType": "grass",
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "silageCrop": "corn",
+      "sellCount": 5
+    },
+    "farmContext": {
+      "difficulty": "hard",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 885600,
+      "milkRevenueYear": 3109931.9989668,
+      "slurryYear": 2916000,
+      "manureYear": 0,
+      "strawYear": 0,
+      "foodYear": -5670000,
+      "salesYear": 15000,
+      "mineralCostYear": 0,
+      "tmrTotalHectares": 0,
+      "fieldworkHectares": 45.52571359749488
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=0% oat normal",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 0,
+      "boughtFeedType": "oat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 15120.000000000004,
+      "feedTotalYear": 6000,
+      "feedBought": 0,
+      "feedGrown": 6000,
+      "feedCostYear": 0,
+      "fieldworkHectares": 0.4730928444707273,
+      "netYear": 15120.000000000004
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=50% oat normal",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 50,
+      "boughtFeedType": "oat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 15120.000000000004,
+      "feedTotalYear": 6000,
+      "feedBought": 3000,
+      "feedGrown": 3000,
+      "feedCostYear": 4200,
+      "fieldworkHectares": 0.23654642223536365,
+      "netYear": 10920.000000000004
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=100% oat normal",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 100,
+      "boughtFeedType": "oat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 15120.000000000004,
+      "feedTotalYear": 6000,
+      "feedBought": 6000,
+      "feedGrown": 0,
+      "feedCostYear": 8400,
+      "fieldworkHectares": 0,
+      "netYear": 6720.000000000004
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=0% wheat easy",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 0,
+      "boughtFeedType": "wheat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 25200,
+      "feedTotalYear": 6000,
+      "feedBought": 0,
+      "feedGrown": 6000,
+      "feedCostYear": 0,
+      "fieldworkHectares": 0.4730928444707273,
+      "netYear": 25200
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=50% wheat easy",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 50,
+      "boughtFeedType": "wheat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 25200,
+      "feedTotalYear": 6000,
+      "feedBought": 3000,
+      "feedGrown": 3000,
+      "feedCostYear": 4500,
+      "fieldworkHectares": 0.23654642223536365,
+      "netYear": 20700
+    }
+  },
+  {
+    "category": "chicken",
+    "label": "chicken bought=100% wheat easy",
+    "contractInputs": {
+      "species": "chicken",
+      "count": 100,
+      "yieldBonus": 0.425,
+      "boughtFeedPercent": 100,
+      "boughtFeedType": "wheat",
+      "grownCrop": "wheat"
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "eggsYear": 6000,
+      "revenueYear": 25200,
+      "feedTotalYear": 6000,
+      "feedBought": 6000,
+      "feedGrown": 0,
+      "feedCostYear": 9000,
+      "fieldworkHectares": 0,
+      "netYear": 16200
+    }
+  },
+  {
+    "category": "sheep",
+    "label": "sheep normal",
+    "contractInputs": {
+      "species": "sheep",
+      "count": 50,
+      "yieldBonus": 0.425,
+      "grassHarvests": 2
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "woolLitersYear": 35294.117647058825,
+      "revenueYear": 77035.76470588235,
+      "feedYear": 29135.294117647016,
+      "fieldworkHectares": 0.23393387223611556
+    }
+  },
+  {
+    "category": "sheep",
+    "label": "sheep easy",
+    "contractInputs": {
+      "species": "sheep",
+      "count": 50,
+      "yieldBonus": 0.425,
+      "grassHarvests": 2
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "woolLitersYear": 35294.117647058825,
+      "revenueYear": 128392.94117647057,
+      "feedYear": 29135.294117647016,
+      "fieldworkHectares": 0.23393387223611556
+    }
+  },
+  {
+    "category": "goat",
+    "label": "goat normal",
+    "contractInputs": {
+      "species": "goat",
+      "count": 30,
+      "yieldBonus": 0.425,
+      "grassHarvests": 2
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 9000,
+      "revenueYear": 49338.72,
+      "feedYear": 18000,
+      "fieldworkHectares": 0.14452607491268216
+    }
+  },
+  {
+    "category": "goat",
+    "label": "goat easy",
+    "contractInputs": {
+      "species": "goat",
+      "count": 30,
+      "yieldBonus": 0.425,
+      "grassHarvests": 2
+    },
+    "farmContext": {
+      "difficulty": "easy",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "milkLitersYear": 9000,
+      "revenueYear": 82231.2,
+      "feedYear": 18000,
+      "fieldworkHectares": 0.14452607491268216
+    }
+  },
+  {
+    "category": "pig",
+    "label": "pig straw=true",
+    "contractInputs": {
+      "species": "pig",
+      "count": 80,
+      "yieldBonus": 0.425,
+      "provideStraw": true,
+      "baseCrop": "corn",
+      "grainCrop": "wheat",
+      "proteinCrop": "soybean",
+      "rootCrop": "potato",
+      "sellCount": 10
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "slurryYear": 62400,
+      "strawYear": -19200,
+      "manureYear": 33600,
+      "feedTotalYear": 57600,
+      "salesYear": 25000,
+      "totalHectares": 5.177646292542398
+    }
+  },
+  {
+    "category": "pig",
+    "label": "pig straw=false",
+    "contractInputs": {
+      "species": "pig",
+      "count": 80,
+      "yieldBonus": 0.425,
+      "provideStraw": false,
+      "baseCrop": "corn",
+      "grainCrop": "wheat",
+      "proteinCrop": "soybean",
+      "rootCrop": "potato",
+      "sellCount": 10
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "slurryYear": 62400,
+      "strawYear": 0,
+      "manureYear": 0,
+      "feedTotalYear": 57600,
+      "salesYear": 25000,
+      "totalHectares": 5.177646292542398
+    }
+  },
+  {
+    "category": "horse",
+    "label": "horse straw=true",
+    "contractInputs": {
+      "species": "horse",
+      "count": 10,
+      "yieldBonus": 0.425,
+      "provideStraw": true,
+      "grassHarvests": 2,
+      "baseCrop": "oat",
+      "rootCrop": "potato",
+      "sellCount": 4
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "strawYear": -9600,
+      "manureYear": 24000,
+      "feedTotalYear": 48007.5,
+      "salesYear": 20000,
+      "totalHectares": 1.7213927461091545
+    }
+  },
+  {
+    "category": "horse",
+    "label": "horse straw=false",
+    "contractInputs": {
+      "species": "horse",
+      "count": 10,
+      "yieldBonus": 0.425,
+      "provideStraw": false,
+      "grassHarvests": 2,
+      "baseCrop": "oat",
+      "rootCrop": "potato",
+      "sellCount": 4
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "strawYear": 0,
+      "manureYear": 0,
+      "feedTotalYear": 48007.5,
+      "salesYear": 20000,
+      "totalHectares": 1.7213927461091545
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed single-6x12 eff=90",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 6,
+          "workingSpeedKmh": 12
+        }
+      ],
+      "efficiency": 0.9,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 7.2,
+      "decimalHours": 3.0864197530864197
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed single-6x12 eff=100",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 6,
+          "workingSpeedKmh": 12
+        }
+      ],
+      "efficiency": 1,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 7.2,
+      "decimalHours": 2.7777777777777777
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed single-9x15 eff=90",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 9,
+          "workingSpeedKmh": 15
+        }
+      ],
+      "efficiency": 0.9,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 13.5,
+      "decimalHours": 1.646090534979424
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed single-9x15 eff=100",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 9,
+          "workingSpeedKmh": 15
+        }
+      ],
+      "efficiency": 1,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 13.5,
+      "decimalHours": 1.4814814814814814
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed team-6x12+9x15 eff=90",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 6,
+          "workingSpeedKmh": 12
+        },
+        {
+          "id": "m1",
+          "name": "Tool 1",
+          "workingWidthM": 9,
+          "workingSpeedKmh": 15
+        }
+      ],
+      "efficiency": 0.9,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 20.7,
+      "decimalHours": 1.0735373054213635
+    }
+  },
+  {
+    "category": "speed",
+    "label": "speed team-6x12+9x15 eff=100",
+    "contractInputs": {
+      "machines": [
+        {
+          "id": "m0",
+          "name": "Tool 0",
+          "workingWidthM": 6,
+          "workingSpeedKmh": 12
+        },
+        {
+          "id": "m1",
+          "name": "Tool 1",
+          "workingWidthM": 9,
+          "workingSpeedKmh": 15
+        }
+      ],
+      "efficiency": 1,
+      "hectares": 20
+    },
+    "farmContext": {
+      "difficulty": "normal",
+      "defaultYieldBonus": 0.425,
+      "sellPriceType": "baseline"
+    },
+    "expected": {
+      "capacityHaPerH": 20.7,
+      "decimalHours": 0.9661835748792271
+    }
+  }
+]
