@@ -26,6 +26,16 @@ declare module 'fastify' {
     public?: boolean;
   }
 
+  interface FastifyRequest {
+    /**
+     * The owned farm resolved by the farm-scope hook for routes under
+     * `/farms/:farmId/*` (see `src/plugins/farm-scope.ts`). Present only after
+     * that hook has run; nested-resource handlers filter by `request.farm.id`
+     * instead of re-checking ownership.
+     */
+    farm?: import('../repositories/farms.repository').FarmRow;
+  }
+
   interface FastifyInstance {
     /**
      * Pre-handler that enforces a valid access token and populates

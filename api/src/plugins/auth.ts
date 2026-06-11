@@ -80,6 +80,14 @@ async function authPlugin(app: import('fastify').FastifyInstance): Promise<void>
     if (request.routeOptions?.config?.public === true) {
       return;
     }
+    // Swagger docs must be browsable without a token (H4.1). @fastify/swagger-ui
+    // registers its routes (UI, openapi.json, static assets) under /api/v1/docs
+    // and we can't set our `{ public: true }` config on them, so skip auth for
+    // that whole subtree here. Kept narrow (exact prefix) to avoid widening the
+    // public surface beyond the docs.
+    if (request.url.startsWith('/api/v1/docs')) {
+      return;
+    }
     await authenticate(request, reply);
   });
 }
