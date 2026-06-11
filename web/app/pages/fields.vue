@@ -91,6 +91,7 @@ interface FieldRow extends Record<string, unknown> {
   cropName: string
   isSilage: boolean
   effectiveBonus: number
+  yieldLiters: number | null
   estimatedIncome: number | null
   raw: Field
 }
@@ -110,13 +111,16 @@ const rows = computed<FieldRow[]>(() => {
     const effectiveBonus = field.yieldBonus ?? (farm?.defaultYieldBonus ?? 0)
 
     let estimatedIncome: number | null = null
+    let yieldLiters: number | null = null
     if (crop && cat && farm) {
-      estimatedIncome = cropProjection(
+      const projection = cropProjection(
         crop,
         { hectares: field.hectares, yieldBonus: field.yieldBonus, isSilage: field.isSilage },
         farm,
         cat,
-      ).grossIncome
+      )
+      estimatedIncome = projection.grossIncome
+      yieldLiters = projection.yieldLiters
     }
 
     return {
@@ -126,6 +130,7 @@ const rows = computed<FieldRow[]>(() => {
       cropName: crop?.nameEs ?? 'Sin cultivo',
       isSilage: field.isSilage,
       effectiveBonus,
+      yieldLiters,
       estimatedIncome,
       raw: field,
     }
@@ -142,6 +147,7 @@ const columns: DataTableColumn[] = [
   { key: 'cropName', label: 'Cultivo' },
   { key: 'isSilage', label: 'Ensilaje', align: 'center' },
   { key: 'effectiveBonus', label: 'Bonus', align: 'right' },
+  { key: 'yieldLiters', label: 'Rendimiento', align: 'right' },
   { key: 'estimatedIncome', label: 'Ingreso estimado', align: 'right' },
   { key: 'actions', label: '', align: 'right', width: '10rem' },
 ]
@@ -239,6 +245,9 @@ function onDeleteClose() {
           </template>
           <template #cell-effectiveBonus="{ value }">
             {{ formatPercent(value as number) }}
+          </template>
+          <template #cell-yieldLiters="{ value }">
+            {{ value === null ? '—' : `${formatNumber(value as number, 0)} L` }}
           </template>
           <template #cell-estimatedIncome="{ value }">
             {{ value === null ? '—' : formatMoney(value as number) }}
