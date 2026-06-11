@@ -4,6 +4,11 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# Toolchain for native addons (argon2 has no musl/Alpine prebuilt -> built from
+# source via node-gyp). Only needed in the build stage; the compiled .node is
+# copied into the runtime stage with node_modules.
+RUN apk add --no-cache python3 make g++
+
 # Install full deps (including dev) for the build.
 COPY package*.json ./
 RUN npm ci
