@@ -6,7 +6,11 @@
 // Note: _variables.scss and _mixins.scss are auto-injected into every Sass entry
 // (this file and component <style> blocks) via Vite `additionalData`, so the
 // tokens and mixins below are already in scope. We must NOT also `@use` them here
-// or Sass errors with "module already loaded".
+// or Sass errors with "module already loaded". Built-in Sass modules
+// (`sass:color`, etc.) are NOT injected, so they must be `@use`d explicitly and
+// must appear before any other rules.
+
+@use 'sass:color';
 
 // ---------------------------------------------------------------------------
 // Reset
@@ -88,4 +92,131 @@ button {
 // ---------------------------------------------------------------------------
 .glass-card {
   @include glass-card;
+}
+
+// Centered page-content wrapper with responsive horizontal padding.
+.container {
+  width: 100%;
+  max-width: var(--container-lg);
+  margin-inline: auto;
+  padding-inline: $space-md;
+
+  @include respond-to('md') {
+    padding-inline: $space-lg;
+  }
+
+  &--sm {
+    max-width: var(--container-sm);
+  }
+
+  &--md {
+    max-width: var(--container-md);
+  }
+
+  &--lg {
+    max-width: var(--container-lg);
+  }
+
+  &--xl {
+    max-width: var(--container-xl);
+  }
+}
+
+// Vertical flow layout: evenly spaced stacked children.
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: $space-md;
+
+  &--xs {
+    gap: $space-xs;
+  }
+
+  &--sm {
+    gap: $space-sm;
+  }
+
+  &--lg {
+    gap: $space-lg;
+  }
+
+  &--xl {
+    gap: $space-xl;
+  }
+}
+
+// Horizontal flow layout: inline children with wrapping and vertical centering.
+.row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-md;
+
+  &--xs {
+    gap: $space-xs;
+  }
+
+  &--sm {
+    gap: $space-sm;
+  }
+
+  &--lg {
+    gap: $space-lg;
+  }
+
+  &--between {
+    justify-content: space-between;
+  }
+
+  &--end {
+    justify-content: flex-end;
+  }
+
+  &--top {
+    align-items: flex-start;
+  }
+
+  &--nowrap {
+    flex-wrap: nowrap;
+  }
+}
+
+// De-emphasised secondary text.
+.muted {
+  color: var(--text-muted);
+}
+
+// Compact status pill. Neutral by default; tone modifiers tint the surface.
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-xs;
+  padding: 0.15rem $space-sm;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+
+  &--success {
+    border-color: color.adjust($success, $alpha: -0.55);
+    background: color.adjust($success, $alpha: -0.82);
+    color: var(--success);
+  }
+
+  &--warning {
+    border-color: color.adjust($warning, $alpha: -0.55);
+    background: color.adjust($warning, $alpha: -0.82);
+    color: var(--warning);
+  }
+
+  &--danger {
+    border-color: color.adjust($danger, $alpha: -0.55);
+    background: color.adjust($danger, $alpha: -0.82);
+    color: var(--danger);
+  }
 }
