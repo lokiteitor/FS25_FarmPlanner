@@ -1,41 +1,146 @@
 <script setup lang="ts">
-// pages/index — authenticated dashboard placeholder (H6 shell). The full
-// dashboard (farm summary widgets, KPIs) lands in H7; for now it greets the
-// logged-in user and prompts them to select or create a partida. Uses the
-// default layout (app shell with sidebar).
-import { computed } from 'vue'
-import { GlassCard, StatCard } from '~/shared/ui'
-import { useSessionStore } from '~/entities/user'
+// pages/index — the dashboard. Ensures the active farm + its catalog, fields and
+// stables are loaded, then renders the farm-summary widget. When the user has no
+// partidas yet it shows an empty state that opens the farm manage modal to
+// create the first one. Uses the default layout (app shell with sidebar) and is
+// behind the global auth guard.
+//
+// Data loading lives here (the host), not in the presentational widget: on mount
+// we load the farms list, resolve the active one, then load that farm's catalog
+// + fields + stables. A watcher reloads farm-scoped data whenever the active
+// farm changes (e.g. via the sidebar FarmSwitcher).
+import { computed, onMounted, ref, watch } from 'vue'
+import { GlassCard, AppButton } from '~/shared/ui'
+import { useFarmStore } from '~/entities/farm'
+import { useFieldStore } from '~/entities/field'
+import { useStableStore } from '~/entities/stable'
+import { useCatalogStore } from '~/entities/catalog'
+import { FarmManageModal } from '~/features/farm-switcher'
+import { FarmSummary } from '~/widgets/farm-summary'
 
-const session = useSessionStore()
+const farmStore = useFarmStore()
+const fieldStore = useFieldStore()
+const stableStore = useStableStore()
+const catalogStore = useCatalogStore()
 
-const greetingName = computed(
-  () => session.user?.displayName ?? session.user?.email ?? '',
+const initializing = ref(true)
+const loadError = ref('')
+const createOpen = ref(false)
+
+const activeFarm = computed(() => farmStore.activeFarm)
+const hasFarms = computed(() => farmStore.hasFarms)
+
+/** Load the catalog, fields and stables for a given farm. */
+async function loadFarmData(farmId: string, gameVersionId: string | null) {
+  await Promise.all([
+    gameVersionId ? catalogStore.load(gameVersionId) : Promise.resolve(),
+    fieldStore.load(farmId),
+    stableStore.load(farmId),
+  ])
+}
+
+/** Initial load: farms list → resolve active → load its scoped data. */
+async function initialize() {
+  initializing.value = true
+  loadError.value = ''
+  try {
+    await farmStore.loadFarms()
+    const activeId = await farmStore.ensureActive()
+    if (activeId) {
+      const farm = farmStore.farmById(activeId)
+      await loadFarmData(activeId, farm?.gameVersionId ?? null)
+    } else {
+      fieldStore.reset()
+      stableStore.reset()
+    }
+  } catch {
+    loadError.value = farmStore.error ?? 'No se pudieron cargar los datos de la partida'
+  } finally {
+    initializing.value = false
+  }
+}
+
+onMounted(initialize)
+
+// Reload farm-scoped data whenever the active farm changes (sidebar switcher,
+// create/delete). Skips the very first run (handled by initialize()).
+watch(
+  () => farmStore.activeFarmId,
+  async (farmId, previous) => {
+    if (farmId === previous) return
+    if (initializing.value) return
+    if (!farmId) {
+      fieldStore.reset()
+      stableStore.reset()
+      return
+    }
+    const farm = farmStore.farmById(farmId)
+    try {
+      await loadFarmData(farmId, farm?.gameVersionId ?? null)
+    } catch {
+      loadError.value = farmStore.error ?? 'No se pudieron cargar los datos de la partida'
+    }
+  },
 )
-const email = computed(() => session.user?.email ?? '—')
+
+/**
+ * Empty-state create flow: a farm was just created. Adopt it as the active farm;
+ * the `activeFarmId` watcher then loads its catalog/fields/stables (no double
+ * load). The modal handles its own close.
+ */
+async function onFarmCreated() {
+  createOpen.value = false
+  const farms = farmStore.farms
+  const newest = farms[farms.length - 1]
+  if (newest && farmStore.activeFarmId !== newest.id) {
+    await farmStore.setActiveFarm(newest.id)
+  }
+}
 </script>
 
 <template>
   <div class="dashboard">
     <header class="dashboard__header">
-      <h1 class="dashboard__title">Hola, {{ greetingName }}</h1>
-      <p class="dashboard__subtitle">Bienvenido a FS25 Farm Planner</p>
+      <h1 class="dashboard__title">
+        {{ activeFarm ? activeFarm.name : 'Dashboard' }}
+      </h1>
+      <p class="dashboard__subtitle">
+        {{
+          activeFarm
+            ? 'Resumen de tu partida'
+            : 'Crea o selecciona una partida para empezar'
+        }}
+      </p>
     </header>
 
-    <div class="dashboard__stats">
-      <StatCard label="Cuenta" :value="email" />
-      <StatCard label="Partida activa" value="Ninguna" hint="Aún no hay partida seleccionada" />
-    </div>
+    <p v-if="loadError" class="dashboard__error" role="alert">{{ loadError }}</p>
 
-    <GlassCard
-      title="Selecciona o crea una partida"
-      subtitle="Trabajarás siempre sobre una partida activa"
-    >
-      <p class="dashboard__note">
-        Elige una partida existente o crea una nueva para empezar a gestionar
-        campos, establos y maquinaria. El panel completo llegará pronto.
-      </p>
-    </GlassCard>
+    <p v-if="initializing" class="dashboard__loading">Cargando partida…</p>
+
+    <template v-else>
+      <FarmSummary v-if="activeFarm" />
+
+      <GlassCard
+        v-else
+        title="Aún no tienes una partida"
+        subtitle="Trabajarás siempre sobre una partida activa"
+      >
+        <p class="dashboard__note">
+          Crea tu primera partida para empezar a gestionar campos, establos y
+          maquinaria, y ver el resumen económico de tus cultivos.
+        </p>
+        <template #footer>
+          <AppButton @click="createOpen = true">Crear partida</AppButton>
+        </template>
+      </GlassCard>
+    </template>
+
+    <FarmManageModal
+      :open="createOpen"
+      :farm="null"
+      @close="createOpen = false"
+      @saved="onFarmCreated"
+    />
   </div>
 </template>
 
@@ -62,14 +167,19 @@ const email = computed(() => session.user?.email ?? '—')
     color: var(--text-muted);
   }
 
-  &__stats {
-    display: grid;
-    gap: $space-md;
-    grid-template-columns: 1fr;
+  &__error {
+    margin: 0;
+    padding: $space-sm $space-md;
+    border: 1px solid var(--danger);
+    border-radius: var(--radius-md);
+    background: rgba(255, 71, 87, 0.12);
+    color: var(--danger);
+    font-size: 0.875rem;
+  }
 
-    @include respond-to('sm') {
-      grid-template-columns: repeat(2, 1fr);
-    }
+  &__loading {
+    margin: 0;
+    color: var(--text-muted);
   }
 
   &__note {

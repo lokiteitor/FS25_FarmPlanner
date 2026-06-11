@@ -10,6 +10,7 @@
 import { computed } from 'vue'
 import { AppButton } from '~/shared/ui'
 import { useSessionStore } from '~/entities/user'
+import { FarmSwitcher } from '~/features/farm-switcher'
 
 interface NavLink {
   label: string
@@ -51,6 +52,8 @@ async function onLogout() {
       <span class="app-sidebar__brand-mark">FS25</span>
       <span class="app-sidebar__brand-name">Farm Planner</span>
     </div>
+
+    <FarmSwitcher />
 
     <nav class="app-sidebar__nav" aria-label="Navegación principal">
       <ul class="app-sidebar__list">
