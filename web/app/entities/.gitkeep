@@ -1,3 +1,0 @@
-# FSD "entities" layer (alias ~/entities).
-# Domain models (types + Pinia stores + api-clients): user, farm, field, stable,
-# machinery, catalog (see plan H6.2 / H7.x).

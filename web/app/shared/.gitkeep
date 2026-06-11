@@ -1,3 +1,0 @@
-# FSD "shared" layer (alias ~/shared).
-# Domain-agnostic code: base HTTP client (shared/api), ui-kit (shared/ui),
-# calculation engine (shared/lib/engine), config (see plan H6.2 / H7.1).
