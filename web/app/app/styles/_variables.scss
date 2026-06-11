@@ -1,0 +1,116 @@
+// Design tokens for the FS25 Farm Planner glassmorphism theme (ADR-F05).
+//
+// Tokens are declared twice on purpose:
+//   1. As SCSS variables  -> used at build time by partials, mixins and the
+//      ui-kit (compile-time composition, color functions, math).
+//   2. As :root CSS custom properties -> used at runtime for theming and direct
+//      `var(--token)` references inside templates.
+//
+// This is the minimal base set; the full migration of planner/main.css lands in
+// story H6.4. Keep new tokens in sync across both representations.
+
+// ---------------------------------------------------------------------------
+// SCSS variables (compile-time)
+// ---------------------------------------------------------------------------
+
+// Brand colors
+$primary: #2ed573;
+$primary-dark: #20a258;
+$accent: #ffa502;
+$accent-dark: #cc8400;
+
+// Semantic colors
+$danger: #ff4757;
+$warning: #ffa502;
+$success: #2ed573;
+$info: #1e90ff;
+
+// Dark glass backgrounds
+$bg-base: #0f1419;
+$bg-gradient-start: #131a22;
+$bg-gradient-end: #0b0f14;
+$glass-bg: rgba(255, 255, 255, 0.06);
+$glass-bg-strong: rgba(255, 255, 255, 0.1);
+$glass-border: rgba(255, 255, 255, 0.12);
+
+// Text
+$text: #e6edf3;
+$text-muted: rgba(230, 237, 243, 0.62);
+$text-strong: #ffffff;
+
+// Shadows
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+$shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+$shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.45);
+$shadow-glow: 0 0 0 1px rgba(46, 213, 115, 0.35), 0 8px 24px rgba(0, 0, 0, 0.35);
+
+// Radii
+$radius-sm: 6px;
+$radius-md: 12px;
+$radius-lg: 20px;
+$radius-pill: 999px;
+
+// Blur
+$blur-glass: 14px;
+
+// Spacing scale
+$space-xs: 0.25rem;
+$space-sm: 0.5rem;
+$space-md: 1rem;
+$space-lg: 1.5rem;
+$space-xl: 2.5rem;
+
+// Breakpoints
+$breakpoints: (
+  'sm': 480px,
+  'md': 768px,
+  'lg': 1024px,
+  'xl': 1280px,
+);
+
+// Typography
+$font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+$font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+// ---------------------------------------------------------------------------
+// Runtime CSS custom properties
+// ---------------------------------------------------------------------------
+
+:root {
+  // Brand
+  --primary: #{$primary};
+  --primary-dark: #{$primary-dark};
+  --accent: #{$accent};
+  --accent-dark: #{$accent-dark};
+
+  // Semantic
+  --danger: #{$danger};
+  --warning: #{$warning};
+  --success: #{$success};
+  --info: #{$info};
+
+  // Backgrounds
+  --bg-base: #{$bg-base};
+  --glass-bg: #{$glass-bg};
+  --glass-bg-strong: #{$glass-bg-strong};
+  --glass-border: #{$glass-border};
+
+  // Text
+  --text: #{$text};
+  --text-muted: #{$text-muted};
+  --text-strong: #{$text-strong};
+
+  // Shadows
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+
+  // Radii
+  --radius-sm: #{$radius-sm};
+  --radius-md: #{$radius-md};
+  --radius-lg: #{$radius-lg};
+  --radius-pill: #{$radius-pill};
+
+  // Blur
+  --blur-glass: #{$blur-glass};
+}

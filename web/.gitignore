@@ -1,0 +1,16 @@
+# Nuxt build artifacts
+.nuxt
+.output
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Local env / data
+.env
+.data
+
+# Logs
+*.log

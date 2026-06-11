@@ -1,0 +1,3 @@
+# Static assets served from the site root (e.g. /favicon.ico, /robots.txt).
+# Add a favicon.ico here; Nuxt copies the contents of public/ verbatim into the
+# static build output (.output/public).

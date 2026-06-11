@@ -1,0 +1,91 @@
+// Global stylesheet entry for FS25 Farm Planner Web (ADR-F05).
+//
+// Imported once via nuxt.config.ts `css`. Defines the dark glassmorphism base:
+// background, reset, base typography and the shared `.glass-card` utility.
+//
+// Note: _variables.scss and _mixins.scss are auto-injected into every Sass entry
+// (this file and component <style> blocks) via Vite `additionalData`, so the
+// tokens and mixins below are already in scope. We must NOT also `@use` them here
+// or Sass errors with "module already loaded".
+
+// ---------------------------------------------------------------------------
+// Reset
+// ---------------------------------------------------------------------------
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+// ---------------------------------------------------------------------------
+// Base background + typography
+// ---------------------------------------------------------------------------
+body {
+  font-family: $font-sans;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text);
+  background-color: var(--bg-base);
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(46, 213, 115, 0.12), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(255, 165, 2, 0.1), transparent 45%),
+    linear-gradient(160deg, #{$bg-gradient-start}, #{$bg-gradient-end});
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0 0 $space-md;
+  color: var(--text-strong);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0 0 $space-md;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+  }
+
+  @include focus-ring;
+}
+
+code,
+pre {
+  font-family: $font-mono;
+}
+
+button {
+  font-family: inherit;
+  @include focus-ring;
+}
+
+// ---------------------------------------------------------------------------
+// Shared utilities
+// ---------------------------------------------------------------------------
+.glass-card {
+  @include glass-card;
+}

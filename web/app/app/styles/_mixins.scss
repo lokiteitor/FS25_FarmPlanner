@@ -1,0 +1,42 @@
+// Reusable SCSS mixins for the FS25 Farm Planner ui-kit (ADR-F05).
+//
+// These mixins consume the design tokens from _variables.scss. This partial is
+// resolved by Sass itself when loaded via `@use`, so Vite's `additionalData`
+// injection does NOT reach it — it must import the variables explicitly.
+
+@use 'sass:map';
+@use 'variables' as *;
+
+// Glassmorphism card surface: translucent background, blur, subtle border.
+@mixin glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  padding: $space-lg;
+}
+
+// Accessible focus indicator for interactive elements.
+@mixin focus-ring($color: var(--primary)) {
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid $color;
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+// Min-width media query helper keyed by the $breakpoints map.
+//   .el { @include respond-to('md') { ... } }
+@mixin respond-to($breakpoint) {
+  @if map.has-key($breakpoints, $breakpoint) {
+    @media (min-width: map.get($breakpoints, $breakpoint)) {
+      @content;
+    }
+  } @else {
+    @error "respond-to: unknown breakpoint `#{$breakpoint}`. Available: #{map.keys($breakpoints)}.";
+  }
+}
