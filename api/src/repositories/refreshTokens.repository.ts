@@ -109,3 +109,19 @@ export async function revokeAllActiveForUser(
     )
     .returning();
 }
+
+/**
+ * Delete refresh tokens that expired more than `olderThanDays` ago. Backs the
+ * periodic cleanup job (H5.2); the `idx_refresh_tokens_expires_at` index
+ * supports the predicate. Returns the number of rows deleted.
+ */
+export async function deleteExpired(
+  olderThanDays = 7,
+  tx: DbExecutor = db,
+): Promise<number> {
+  const deleted = await tx
+    .delete(refreshTokens)
+    .where(sql`${refreshTokens.expiresAt} < now() - make_interval(days => ${olderThanDays})`)
+    .returning({ id: refreshTokens.id });
+  return deleted.length;
+}
