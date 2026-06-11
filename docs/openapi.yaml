@@ -1,0 +1,1665 @@
+openapi: 3.1.0
+info:
+  title: FS25 Farm Planner API
+  version: 1.0.0
+  description: >
+    API REST de FS25 Farm Planner: herramienta de planificación para Farming
+    Simulator 25. Multiusuario simple (JWT, sin roles), autorización por
+    propiedad. Persiste partidas (farms), campos, establos, maquinaria y
+    configuraciones de calculadoras; sirve catálogos del juego versionados.
+    Fuente de verdad del contrato. Ver también docs/arquitectura-api.md,
+    docs/base-de-datos.md y docs/autorizacion-api.md.
+  contact:
+    name: Equipo FS25 Tools
+  license:
+    name: UNLICENSED
+    identifier: LicenseRef-Proprietary
+
+servers:
+  - url: /api/v1
+    description: Backend tras el proxy nginx
+
+tags:
+  - name: Health
+    description: Sondas de estado
+  - name: Auth
+    description: Registro, sesión y perfil
+  - name: Catalog
+    description: Catálogos del juego (solo lectura)
+  - name: Farms
+    description: Partidas/savegames del usuario
+  - name: Fields
+    description: Campos de una partida
+  - name: Stables
+    description: Establos de una partida
+  - name: Machinery
+    description: Maquinaria de una partida
+  - name: AnimalConfigs
+    description: Configuraciones de calculadoras de animales
+  - name: CalculatorStates
+    description: Estado persistido de herramientas auxiliares
+  - name: UserSettings
+    description: Preferencias de UI del usuario
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Estado del servicio
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status: { type: string, const: ok }
+                      uptime: { type: number }
+                    required: [status]
+                required: [data]
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar una cuenta
+      operationId: register
+      description: Crea el usuario, su fila de user_settings y una farm por defecto ("Mi partida").
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 200 }
+                displayName: { type: string, maxLength: 100 }
+              required: [email, password]
+      responses:
+        '201':
+          description: Cuenta creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
+                required: [data]
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+              required: [email, password]
+      responses:
+        '200':
+          description: Sesión iniciada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
+                required: [data]
+        '401':
+          description: Credenciales inválidas (mismo código para email inexistente)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { error: { code: INVALID_CREDENTIALS, message: "Email o contraseña incorrectos" } }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotar tokens
+      operationId: refreshTokens
+      description: Rota el refresh token (detección de reuso) y emite un nuevo par access/refresh.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+              required: [refreshToken]
+      responses:
+        '200':
+          description: Tokens rotados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/TokenPair' }
+                required: [data]
+        '401':
+          description: Refresh token inválido, expirado o reutilizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              examples:
+                invalid:
+                  value: { error: { code: INVALID_REFRESH_TOKEN, message: "Token inválido o expirado" } }
+                reused:
+                  value: { error: { code: REFRESH_TOKEN_REUSED, message: "Reuso detectado; sesión revocada" } }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revocar el refresh token actual
+      operationId: logout
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+              required: [refreshToken]
+      responses:
+        '204':
+          description: Sesión cerrada (idempotente)
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Usuario autenticado
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [Auth]
+      summary: Actualizar perfil o contraseña
+      operationId: updateCurrentUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string, maxLength: 100 }
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 8, maxLength: 200 }
+              description: Para cambiar la contraseña, currentPassword y newPassword son obligatorios juntos.
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+                required: [data]
+        '401':
+          description: currentPassword incorrecta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { error: { code: INVALID_CREDENTIALS, message: "Contraseña actual incorrecta" } }
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /catalog/game-versions:
+    get:
+      tags: [Catalog]
+      summary: Listar versiones de juego
+      operationId: listGameVersions
+      responses:
+        '200':
+          description: Versiones disponibles
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/GameVersion' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /catalog/crops:
+    get:
+      tags: [Catalog]
+      summary: Catálogo de cultivos
+      operationId: listCrops
+      parameters:
+        - $ref: '#/components/parameters/GameVersionQuery'
+      responses:
+        '200':
+          description: Cultivos de la versión solicitada (o activa)
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Crop' }
+                  meta:
+                    type: object
+                    properties:
+                      gameVersionId: { type: string, format: uuid }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /catalog/silage-crops:
+    get:
+      tags: [Catalog]
+      summary: Catálogo de cultivos de ensilaje
+      operationId: listSilageCrops
+      parameters:
+        - $ref: '#/components/parameters/GameVersionQuery'
+      responses:
+        '200':
+          description: Cultivos de ensilaje
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SilageCrop' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /catalog/animal-types:
+    get:
+      tags: [Catalog]
+      summary: Catálogo de tipos de animales
+      operationId: listAnimalTypes
+      parameters:
+        - $ref: '#/components/parameters/GameVersionQuery'
+      responses:
+        '200':
+          description: Tipos de animales con sus tasas y opciones de alimentación
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AnimalType' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /catalog/constants:
+    get:
+      tags: [Catalog]
+      summary: Constantes globales de balance
+      operationId: getConstants
+      parameters:
+        - $ref: '#/components/parameters/GameVersionQuery'
+      responses:
+        '200':
+          description: Constantes globales (aplanadas key→value)
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { $ref: '#/components/headers/CacheControl' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/GameConstants' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms:
+    get:
+      tags: [Farms]
+      summary: Listar partidas del usuario
+      operationId: listFarms
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/PerPageQuery'
+      responses:
+        '200':
+          description: Partidas con contadores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Farm' }
+                  meta: { $ref: '#/components/schemas/PaginationMeta' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Farms]
+      summary: Crear partida
+      operationId: createFarm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FarmCreate' }
+      responses:
+        '201':
+          description: Partida creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Farm' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /farms/{farmId}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Farms]
+      summary: Detalle de partida
+      operationId: getFarm
+      responses:
+        '200':
+          description: Partida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Farm' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Farms]
+      summary: Actualizar partida
+      operationId: updateFarm
+      description: >
+        Cambiar gameVersionId dispara el remapeo de los cultivos de los campos
+        por slug; los slugs inexistentes en la nueva versión quedan sin cultivo
+        y se reportan en meta.warnings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FarmUpdate' }
+      responses:
+        '200':
+          description: Partida actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Farm' }
+                  meta:
+                    type: object
+                    properties:
+                      warnings:
+                        type: array
+                        items: { type: string }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Farms]
+      summary: Borrar partida (cascada)
+      operationId: deleteFarm
+      responses:
+        '204':
+          description: Partida borrada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/fields:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Fields]
+      summary: Listar campos de la partida
+      operationId: listFields
+      responses:
+        '200':
+          description: Campos ordenados por fieldNumber
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Field' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Fields]
+      summary: Crear campo
+      operationId: createField
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FieldCreate' }
+      responses:
+        '201':
+          description: Campo creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Field' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /farms/{farmId}/fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+      - $ref: '#/components/parameters/FieldId'
+    get:
+      tags: [Fields]
+      summary: Detalle de campo
+      operationId: getField
+      responses:
+        '200':
+          description: Campo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Field' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Fields]
+      summary: Actualizar campo
+      operationId: updateField
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FieldUpdate' }
+      responses:
+        '200':
+          description: Campo actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Field' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Fields]
+      summary: Borrar campo
+      operationId: deleteField
+      responses:
+        '204':
+          description: Campo borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/stables:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Stables]
+      summary: Listar establos de la partida
+      operationId: listStables
+      responses:
+        '200':
+          description: Establos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Stable' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Stables]
+      summary: Crear establo
+      operationId: createStable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StableCreate' }
+      responses:
+        '201':
+          description: Establo creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Stable' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /farms/{farmId}/stables/{stableId}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+      - $ref: '#/components/parameters/StableId'
+    get:
+      tags: [Stables]
+      summary: Detalle de establo
+      operationId: getStable
+      responses:
+        '200':
+          description: Establo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Stable' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Stables]
+      summary: Actualizar establo
+      operationId: updateStable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StableUpdate' }
+      responses:
+        '200':
+          description: Establo actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Stable' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Stables]
+      summary: Borrar establo
+      operationId: deleteStable
+      responses:
+        '204':
+          description: Establo borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/machinery:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [Machinery]
+      summary: Listar maquinaria de la partida
+      operationId: listMachinery
+      responses:
+        '200':
+          description: Maquinaria
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Machine' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Machinery]
+      summary: Crear equipo
+      operationId: createMachine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineCreate' }
+      responses:
+        '201':
+          description: Equipo creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Machine' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /farms/{farmId}/machinery/{machineId}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+      - $ref: '#/components/parameters/MachineId'
+    get:
+      tags: [Machinery]
+      summary: Detalle de equipo
+      operationId: getMachine
+      responses:
+        '200':
+          description: Equipo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Machine' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Machinery]
+      summary: Actualizar equipo
+      operationId: updateMachine
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MachineUpdate' }
+      responses:
+        '200':
+          description: Equipo actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Machine' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [Machinery]
+      summary: Borrar equipo
+      operationId: deleteMachine
+      responses:
+        '204':
+          description: Equipo borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/animal-configs:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+    get:
+      tags: [AnimalConfigs]
+      summary: Listar configuraciones de calculadoras de la partida
+      operationId: listAnimalConfigs
+      responses:
+        '200':
+          description: Configuraciones existentes (0..7)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AnimalConfig' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/animal-configs/{species}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+      - $ref: '#/components/parameters/Species'
+    get:
+      tags: [AnimalConfigs]
+      summary: Obtener configuración de una especie
+      operationId: getAnimalConfig
+      responses:
+        '200':
+          description: Configuración
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AnimalConfig' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: No existe configuración guardada (el cliente usa defaults del catálogo)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { error: { code: CONFIG_NOT_FOUND, message: "Sin configuración para esta especie" } }
+    put:
+      tags: [AnimalConfigs]
+      summary: Crear o reemplazar (upsert) la configuración de una especie
+      operationId: upsertAnimalConfig
+      description: >
+        El cuerpo es el objeto inputs validado según la especie de la ruta
+        (unión discriminada). El campo `species` del cuerpo debe coincidir con
+        el `{species}` de la ruta; si difieren se responde `422 VALIDATION_ERROR`.
+        No se aceptan campos desconocidos (validación estricta), ni `difficulty`
+        ni `sellPriceType`: viven en la farm.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnimalConfigInputs' }
+      responses:
+        '200':
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AnimalConfig' }
+                required: [data]
+        '201':
+          description: Configuración creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/AnimalConfig' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      tags: [AnimalConfigs]
+      summary: Borrar la configuración (volver a defaults)
+      operationId: deleteAnimalConfig
+      responses:
+        '204':
+          description: Configuración borrada
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /farms/{farmId}/calculator-states/{toolKey}:
+    parameters:
+      - $ref: '#/components/parameters/FarmId'
+      - $ref: '#/components/parameters/ToolKey'
+    get:
+      tags: [CalculatorStates]
+      summary: Obtener estado de una herramienta
+      operationId: getCalculatorState
+      responses:
+        '200':
+          description: Estado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CalculatorState' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [CalculatorStates]
+      summary: Crear o reemplazar (upsert) el estado de una herramienta
+      operationId: upsertCalculatorState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CalculatorStateInput' }
+      responses:
+        '200':
+          description: Estado guardado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CalculatorState' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /me/settings:
+    get:
+      tags: [UserSettings]
+      summary: Preferencias de UI del usuario
+      operationId: getUserSettings
+      description: Crea la fila con defaults si no existe.
+      responses:
+        '200':
+          description: Preferencias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/UserSettings' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    patch:
+      tags: [UserSettings]
+      summary: Actualizar preferencias de UI
+      operationId: updateUserSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UserSettingsUpdate' }
+      responses:
+        '200':
+          description: Preferencias actualizadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/UserSettings' }
+                required: [data]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validación o farm no perteneciente al usuario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example: { error: { code: FARM_NOT_OWNED, message: "La partida activa no pertenece al usuario" } }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token JWT (~15 min). Refrescar con /auth/refresh cuando expire (401 TOKEN_EXPIRED).
+
+  headers:
+    ETag:
+      description: Validador de caché por versión de catálogo
+      schema: { type: string }
+    CacheControl:
+      description: Política de caché de catálogos
+      schema: { type: string, example: "public, max-age=86400" }
+
+  parameters:
+    GameVersionQuery:
+      name: gameVersionId
+      in: query
+      required: false
+      description: Versión de juego; por defecto, la activa.
+      schema: { type: string, format: uuid }
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPageQuery:
+      name: perPage
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    FarmId:
+      name: farmId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FieldId:
+      name: fieldId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    StableId:
+      name: stableId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MachineId:
+      name: machineId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Species:
+      name: species
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/AnimalSpecies' }
+    ToolKey:
+      name: toolKey
+      in: path
+      required: true
+      schema: { type: string, enum: [work_speed] }
+
+  responses:
+    Unauthorized:
+      description: No autenticado o token expirado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            expired:
+              value: { error: { code: TOKEN_EXPIRED, message: "Access token expirado" } }
+            missing:
+              value: { error: { code: UNAUTHORIZED, message: "Autenticación requerida" } }
+    NotFound:
+      description: Recurso inexistente o ajeno (ownership → 404)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { error: { code: FARM_NOT_FOUND, message: "No encontrado" } }
+    Conflict:
+      description: Conflicto de unicidad
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            email:
+              value: { error: { code: EMAIL_ALREADY_REGISTERED, message: "Email ya registrado" } }
+            farm:
+              value: { error: { code: DUPLICATE_FARM_NAME, message: "Ya tienes una partida con ese nombre" } }
+            field:
+              value: { error: { code: DUPLICATE_FIELD_NUMBER, message: "Número de campo duplicado en la partida" } }
+            stable:
+              value: { error: { code: DUPLICATE_STABLE_NAME, message: "Nombre de establo duplicado en la partida" } }
+    ValidationError:
+      description: Error de validación de entrada
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          examples:
+            generic:
+              value:
+                error:
+                  code: VALIDATION_ERROR
+                  message: "Datos inválidos"
+                  details: [{ path: hectares, message: "must be > 0" }]
+            cropVersion:
+              value: { error: { code: CROP_VERSION_MISMATCH, message: "El cultivo no pertenece a la versión de la partida" } }
+            silage:
+              value: { error: { code: SILAGE_NOT_SUPPORTED_FOR_CROP, message: "El cultivo no admite ensilaje" } }
+            capacity:
+              value: { error: { code: COUNT_EXCEEDS_CAPACITY, message: "currentCount supera maxCapacity" } }
+    RateLimited:
+      description: Demasiadas peticiones
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+          example: { error: { code: RATE_LIMITED, message: "Demasiados intentos, reintenta más tarde" } }
+
+  schemas:
+    AnimalSpecies:
+      type: string
+      enum: [cow, buffalo, chicken, sheep, goat, pig, horse]
+    Difficulty:
+      type: string
+      enum: [easy, normal, hard]
+    SellPriceType:
+      type: string
+      enum: [baseline, max_seasonal]
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+                required: [message]
+          required: [code, message]
+      required: [error]
+
+    PaginationMeta:
+      type: object
+      properties:
+        pagination:
+          type: object
+          properties:
+            page: { type: integer }
+            perPage: { type: integer }
+            total: { type: integer }
+          required: [page, perPage, total]
+
+    Timestamps:
+      type: object
+      properties:
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+      required: [id, email, createdAt]
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: Segundos de validez del access token }
+      required: [accessToken, refreshToken]
+
+    AuthSession:
+      type: object
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer }
+      required: [user, accessToken, refreshToken]
+
+    GameVersion:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        label: { type: string }
+        isActive: { type: boolean }
+        releasedAt: { type: [string, 'null'], format: date }
+      required: [id, label, isActive]
+
+    Crop:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        nameEs: { type: string }
+        nameEn: { type: string }
+        yieldPerM2: { type: number }
+        basePrice: { type: number }
+        maxPriceFactor: { type: number }
+        seedRate: { type: number }
+        weightPerLiter: { type: number }
+      required: [id, slug, nameEs, nameEn, yieldPerM2, basePrice, maxPriceFactor, seedRate, weightPerLiter]
+
+    SilageCrop:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        cropId: { type: string, format: uuid }
+        cropSlug: { type: string }
+        yieldPerM2: { type: number }
+        chaffFactor: { type: number }
+      required: [id, cropId, cropSlug, yieldPerM2, chaffFactor]
+
+    AnimalProduct:
+      type: [object, 'null']
+      properties:
+        slug: { type: string }
+        basePrice: { type: number }
+        priceScalar: { type: [number, 'null'] }
+      required: [slug, basePrice]
+
+    AnimalType:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        species: { $ref: '#/components/schemas/AnimalSpecies' }
+        nameEs: { type: string }
+        difficultyScalars:
+          type: object
+          properties:
+            easy: { type: number }
+            normal: { type: number }
+            hard: { type: number }
+          required: [easy, normal, hard]
+        salePrice: { type: [number, 'null'] }
+        product: { $ref: '#/components/schemas/AnimalProduct' }
+        monthlyRates:
+          type: object
+          description: Tasas mensuales en litros (negativo = consumo). Claves según especie.
+          additionalProperties: { type: number }
+        feedOptions:
+          type: object
+          description: Opciones de alimentación por especie (estructura libre validada en seed).
+          additionalProperties: true
+      required: [id, species, nameEs, difficultyScalars, monthlyRates, feedOptions]
+
+    GameConstants:
+      type: object
+      description: Constantes globales aplanadas key→value.
+      properties:
+        defaultYieldBonus: { type: number }
+        strawBonus: { type: number }
+        mineralFeedPrice: { type: number }
+        silagePrice: { type: number }
+        silageWeight: { type: number }
+        strawYieldPerM2: { type: number }
+        grassYieldPerM2: { type: number }
+        yieldBonusScalar: { type: number }
+        incomeDifficultyScalars:
+          type: object
+          properties:
+            easy: { type: number }
+            normal: { type: number }
+            hard: { type: number }
+        feedPurchasePrices:
+          type: object
+          additionalProperties: { type: number }
+        milkPriceScalars:
+          type: object
+          properties:
+            average: { type: number }
+            max: { type: number }
+            monthly:
+              type: array
+              items:
+                type: object
+                properties:
+                  month: { type: integer }
+                  name: { type: string }
+                  value: { type: number }
+                required: [month, value]
+      additionalProperties: true
+
+    Farm:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            userId: { type: string, format: uuid }
+            gameVersionId: { type: string, format: uuid }
+            name: { type: string }
+            mapName: { type: [string, 'null'] }
+            difficulty: { $ref: '#/components/schemas/Difficulty' }
+            defaultYieldBonus: { type: number }
+            sellPriceType: { $ref: '#/components/schemas/SellPriceType' }
+            notes: { type: [string, 'null'] }
+            fieldCount: { type: integer }
+            stableCount: { type: integer }
+          required: [id, userId, gameVersionId, name, difficulty, defaultYieldBonus, sellPriceType]
+
+    FarmCreate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        gameVersionId: { type: string, format: uuid, description: "Por defecto, la versión activa." }
+        mapName: { type: string, maxLength: 100 }
+        difficulty: { $ref: '#/components/schemas/Difficulty' }
+        defaultYieldBonus: { type: number, minimum: 0, maximum: 5 }
+        sellPriceType: { $ref: '#/components/schemas/SellPriceType' }
+        notes: { type: string }
+      required: [name]
+
+    FarmUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        gameVersionId: { type: string, format: uuid }
+        mapName: { type: [string, 'null'], maxLength: 100 }
+        difficulty: { $ref: '#/components/schemas/Difficulty' }
+        defaultYieldBonus: { type: number, minimum: 0, maximum: 5 }
+        sellPriceType: { $ref: '#/components/schemas/SellPriceType' }
+        notes: { type: [string, 'null'] }
+
+    Field:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            farmId: { type: string, format: uuid }
+            fieldNumber: { type: integer }
+            hectares: { type: number }
+            cropId: { type: [string, 'null'], format: uuid }
+            isSilage: { type: boolean }
+            yieldBonus: { type: [number, 'null'], description: "null → hereda defaultYieldBonus de la farm" }
+            purchasePrice: { type: [number, 'null'] }
+          required: [id, farmId, fieldNumber, hectares, isSilage]
+
+    FieldCreate:
+      type: object
+      properties:
+        fieldNumber: { type: integer, minimum: 1 }
+        hectares: { type: number, exclusiveMinimum: 0 }
+        cropId: { type: [string, 'null'], format: uuid }
+        isSilage: { type: boolean, default: false }
+        yieldBonus: { type: [number, 'null'], minimum: 0, maximum: 5 }
+        purchasePrice: { type: [number, 'null'], minimum: 0 }
+      required: [fieldNumber, hectares]
+
+    FieldUpdate:
+      type: object
+      properties:
+        fieldNumber: { type: integer, minimum: 1 }
+        hectares: { type: number, exclusiveMinimum: 0 }
+        cropId: { type: [string, 'null'], format: uuid }
+        isSilage: { type: boolean }
+        yieldBonus: { type: [number, 'null'], minimum: 0, maximum: 5 }
+        purchasePrice: { type: [number, 'null'], minimum: 0 }
+
+    Stable:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            farmId: { type: string, format: uuid }
+            name: { type: string }
+            species: { $ref: '#/components/schemas/AnimalSpecies' }
+            maxCapacity: { type: integer }
+            currentCount: { type: integer }
+            config:
+              type: object
+              description: >
+                Overrides por establo, validados con zod según `species`. Claves
+                posibles (subconjunto según especie): `feedType` (rumiantes),
+                `provideStraw`, `grassHarvests`, `silageCrop` (slug), y los
+                componentes de pienso de cerdo/caballo (`baseCrop`/`grainCrop`/
+                `proteinCrop`/`rootCrop`, slugs). Sin claves de `difficulty`/
+                `sellPriceType` (viven en la farm).
+              additionalProperties: true
+          required: [id, farmId, name, species, maxCapacity, currentCount, config]
+
+    StableCreate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        species: { $ref: '#/components/schemas/AnimalSpecies' }
+        maxCapacity: { type: integer, minimum: 1 }
+        currentCount: { type: integer, minimum: 0, default: 0 }
+        config:
+          type: object
+          description: Overrides por establo validados con zod según `species` (ver schema `Stable.config`).
+          additionalProperties: true
+      required: [name, species, maxCapacity]
+
+    StableUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        species: { $ref: '#/components/schemas/AnimalSpecies' }
+        maxCapacity: { type: integer, minimum: 1 }
+        currentCount: { type: integer, minimum: 0 }
+        config:
+          type: object
+          description: Overrides por establo validados con zod según `species` (ver schema `Stable.config`).
+          additionalProperties: true
+
+    Machine:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            farmId: { type: string, format: uuid }
+            name: { type: string }
+            workingWidthM: { type: number }
+            workingSpeedKmh: { type: number }
+          required: [id, farmId, name, workingWidthM, workingSpeedKmh]
+
+    MachineCreate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        workingWidthM: { type: number, exclusiveMinimum: 0 }
+        workingSpeedKmh: { type: number, exclusiveMinimum: 0 }
+      required: [name, workingWidthM, workingSpeedKmh]
+
+    MachineUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        workingWidthM: { type: number, exclusiveMinimum: 0 }
+        workingSpeedKmh: { type: number, exclusiveMinimum: 0 }
+
+    AnimalConfig:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            farmId: { type: string, format: uuid }
+            species: { $ref: '#/components/schemas/AnimalSpecies' }
+            schemaVersion: { type: integer }
+            inputs: { $ref: '#/components/schemas/AnimalConfigInputs' }
+          required: [id, farmId, species, schemaVersion, inputs]
+
+    AnimalConfigInputs:
+      description: >
+        Inputs de la calculadora, unión discriminada por especie. No incluye
+        difficulty ni sellPriceType (viven en la farm).
+      oneOf:
+        - $ref: '#/components/schemas/CowInputs'
+        - $ref: '#/components/schemas/BuffaloInputs'
+        - $ref: '#/components/schemas/ChickenInputs'
+        - $ref: '#/components/schemas/SheepInputs'
+        - $ref: '#/components/schemas/GoatInputs'
+        - $ref: '#/components/schemas/PigInputs'
+        - $ref: '#/components/schemas/HorseInputs'
+      discriminator:
+        propertyName: species
+        mapping:
+          cow: '#/components/schemas/CowInputs'
+          buffalo: '#/components/schemas/BuffaloInputs'
+          chicken: '#/components/schemas/ChickenInputs'
+          sheep: '#/components/schemas/SheepInputs'
+          goat: '#/components/schemas/GoatInputs'
+          pig: '#/components/schemas/PigInputs'
+          horse: '#/components/schemas/HorseInputs'
+
+    # Schemas planos (sin allOf) para que additionalProperties:false haga cumplir
+    # el zod .strict() de la implementación: cada especie acepta solo sus campos.
+    # Campos comunes a todas: species (discriminante), count, yieldBonus, linkedStableId.
+
+    CowInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        species: { const: cow }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        feedType: { type: string, enum: [tmr, simple, hay, grass] }
+        provideStraw: { type: boolean }
+        grassHarvests: { type: integer, minimum: 0 }
+        silageCrop: { type: [string, 'null'], description: slug del cultivo de ensilaje }
+        sellCount: { type: integer, minimum: 0 }
+        breed: { type: string, enum: [Holstein, Other] }
+      required: [species, count]
+
+    BuffaloInputs:
+      type: object
+      additionalProperties: false
+      description: El búfalo no admite feedType "simple" (solo tmr/hay/grass).
+      properties:
+        species: { const: buffalo }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        feedType: { type: string, enum: [tmr, hay, grass] }
+        provideStraw: { type: boolean }
+        grassHarvests: { type: integer, minimum: 0 }
+        silageCrop: { type: [string, 'null'], description: slug del cultivo de ensilaje }
+        sellCount: { type: integer, minimum: 0 }
+      required: [species, count]
+
+    ChickenInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        species: { const: chicken }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        boughtFeedPercent: { type: number, minimum: 0, maximum: 100 }
+        boughtFeedType: { type: string, enum: [oat, wheat] }
+        grownCrop: { type: string, description: slug del cultivo cultivado para el % no comprado }
+      required: [species, count]
+
+    SheepInputs:
+      type: object
+      additionalProperties: false
+      description: La oveja produce lana y se puede vender (sellCount). Come, no necesita paja.
+      properties:
+        species: { const: sheep }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        grassHarvests: { type: integer, minimum: 0 }
+        sellCount: { type: integer, minimum: 0 }
+      required: [species, count]
+
+    GoatInputs:
+      type: object
+      additionalProperties: false
+      description: La cabra produce leche y se puede vender (sellCount). Come, no necesita paja.
+      properties:
+        species: { const: goat }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        grassHarvests: { type: integer, minimum: 0 }
+        sellCount: { type: integer, minimum: 0 }
+      required: [species, count]
+
+    PigInputs:
+      type: object
+      additionalProperties: false
+      properties:
+        species: { const: pig }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        provideStraw: { type: boolean }
+        sellCount: { type: integer, minimum: 0 }
+        baseCrop: { type: string, description: slug }
+        grainCrop: { type: string, description: slug }
+        proteinCrop: { type: string, description: slug }
+        rootCrop: { type: string, description: slug }
+      required: [species, count]
+
+    HorseInputs:
+      type: object
+      additionalProperties: false
+      description: El caballo solo se vende (sellCount). Necesita paja y comida (heno vía grassHarvests + cultivos).
+      properties:
+        species: { const: horse }
+        count: { type: integer, minimum: 0 }
+        yieldBonus: { type: number, minimum: 0, maximum: 5 }
+        linkedStableId: { type: [string, 'null'], format: uuid }
+        provideStraw: { type: boolean }
+        grassHarvests: { type: integer, minimum: 0 }
+        sellCount: { type: integer, minimum: 0 }
+        baseCrop: { type: string, description: slug }
+        rootCrop: { type: string, description: slug }
+      required: [species, count]
+
+    CalculatorState:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            id: { type: string, format: uuid }
+            farmId: { type: string, format: uuid }
+            toolKey: { type: string, enum: [work_speed] }
+            state: { $ref: '#/components/schemas/WorkSpeedState' }
+          required: [id, farmId, toolKey, state]
+
+    CalculatorStateInput:
+      $ref: '#/components/schemas/WorkSpeedState'
+
+    WorkSpeedState:
+      type: object
+      properties:
+        hectares: { type: [number, 'null'] }
+        selectedFieldId: { type: [string, 'null'], format: uuid }
+        efficiency: { type: number, minimum: 0.5, maximum: 1 }
+        activeMachineryIds:
+          type: array
+          items: { type: string, format: uuid }
+
+    UserSettings:
+      allOf:
+        - $ref: '#/components/schemas/Timestamps'
+        - type: object
+          properties:
+            userId: { type: string, format: uuid }
+            locale: { type: string }
+            theme: { type: string, enum: [system, dark, light] }
+            activeFarmId: { type: [string, 'null'], format: uuid }
+            preferences: { type: object, additionalProperties: true }
+          required: [userId, locale, theme]
+
+    UserSettingsUpdate:
+      type: object
+      properties:
+        locale: { type: string, maxLength: 10 }
+        theme: { type: string, enum: [system, dark, light] }
+        activeFarmId: { type: [string, 'null'], format: uuid }
+        preferences: { type: object, additionalProperties: true }
