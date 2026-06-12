@@ -6,6 +6,7 @@
  *  - Orchestrates repositories + the token service; ALL DB access goes through
  *    repositories (layered architecture), never raw queries here.
  *  - Passwords are hashed with argon2id (docs/arquitectura-api.md §9).
+ *    Uses @node-rs/argon2 (Rust/NAPI, prebuilt binaries — no node-gyp).
  *  - Throws domain {@link AppError}s; the error-handler plugin turns them into
  *    the standard envelope. Login uses one opaque `INVALID_CREDENTIALS` for both
  *    "no such email" and "wrong password" so existence isn't leaked.
@@ -15,7 +16,7 @@
  * internal columns never cross this boundary.
  */
 
-import argon2 from 'argon2';
+import { hash, verify, Algorithm } from '@node-rs/argon2';
 import type { FastifyInstance } from 'fastify';
 
 import { db } from '../db/client';
@@ -34,7 +35,7 @@ import {
 } from './token.service';
 
 /** Argon2id options (memory/time cost left to library defaults in v1). */
-const ARGON2_OPTIONS = { type: argon2.argon2id } as const;
+const ARGON2_OPTIONS = { algorithm: Algorithm.Argon2id } as const;
 
 /**
  * Cached dummy argon2id hash used to equalise login timing when the email is
@@ -45,7 +46,7 @@ const ARGON2_OPTIONS = { type: argon2.argon2id } as const;
 let dummyHashPromise: Promise<string> | null = null;
 function getDummyHash(): Promise<string> {
   if (!dummyHashPromise) {
-    dummyHashPromise = argon2.hash('timing-equalizer-not-a-real-secret', ARGON2_OPTIONS);
+    dummyHashPromise = hash('timing-equalizer-not-a-real-secret', ARGON2_OPTIONS);
   }
   return dummyHashPromise;
 }
@@ -104,7 +105,7 @@ export async function register(
       );
     }
 
-    const passwordHash = await argon2.hash(input.password, ARGON2_OPTIONS);
+    const passwordHash = await hash(input.password, ARGON2_OPTIONS);
 
     const user = await usersRepo.create(
       {
@@ -163,14 +164,14 @@ export async function login(
   if (!user) {
     // Run a verify against a dummy hash anyway so the response time matches the
     // "user exists, wrong password" path (prevents timing-based enumeration).
-    await argon2.verify(await getDummyHash(), input.password).catch(() => false);
+    await verify(await getDummyHash(), input.password).catch(() => false);
     throw new UnauthorizedError(
       'INVALID_CREDENTIALS',
       'Email o contraseña incorrectos',
     );
   }
 
-  const valid = await argon2.verify(user.passwordHash, input.password);
+  const valid = await verify(user.passwordHash, input.password);
   if (!valid) {
     throw new UnauthorizedError(
       'INVALID_CREDENTIALS',
@@ -224,7 +225,7 @@ export async function updateMe(
   let current = user;
 
   if (body.newPassword !== undefined) {
-    const valid = await argon2.verify(
+    const valid = await verify(
       user.passwordHash,
       body.currentPassword ?? '',
     );
@@ -234,7 +235,7 @@ export async function updateMe(
         'Contraseña actual incorrecta',
       );
     }
-    const passwordHash = await argon2.hash(body.newPassword, ARGON2_OPTIONS);
+    const passwordHash = await hash(body.newPassword, ARGON2_OPTIONS);
     const updated = await usersRepo.updatePasswordHash(userId, passwordHash);
     if (updated) {
       current = updated;

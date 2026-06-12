@@ -12,14 +12,14 @@
 #
 # Notas:
 #   - Compose v2: no se necesita la clave "version" (obsoleta).
-#   - DESARROLLO: para iterar sobre el codigo se recomienda ejecutar api (tsx)
-#     y web (nuxt dev) en local con hot-reload; este compose construye imagenes
-#     de produccion. Postgres y Redis de este compose pueden reutilizarse en dev
-#     publicando temporalmente sus puertos en un archivo override no commiteado.
+#   - DESARROLLO EN DOCKER: usar el overlay dev para watch + bind-mount de src/:
+#       docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up --build
+#     El compose base (este archivo) es exclusivamente de produccion.
+#   - DESARROLLO LOCAL (sin Docker): cd api && bun --watch src/server.ts
+#     Postgres y Redis de este compose pueden exponerse en un override no commiteado.
 #   - Las migraciones y el seed se ejecutan en el arranque del servicio "api"
-#     (ver su "command"). Los ficheros dist/db/migrate.js y dist/db/seed.js se
-#     anaden en H2 (compilados desde src/db/*.ts). Hasta entonces, el comando
-#     puede fallar de forma controlada y debe ajustarse al cerrar H2.
+#     (ver su "command"). Bun corre los fuentes TypeScript directamente desde
+#     src/db/migrate.ts y src/db/seed.ts — no hay paso tsc → dist/.
 # =============================================================================
 
 services:
@@ -89,9 +89,9 @@ services:
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-10}
       ENABLE_TOKEN_CLEANUP: ${ENABLE_TOKEN_CLEANUP:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    # Aplica migraciones + seed (idempotentes) y arranca el servidor.
-    # dist/db/migrate.js y dist/db/seed.js se compilan desde src/db/*.ts en H2.
-    command: ["sh", "-c", "node dist/db/migrate.js && node dist/db/seed.js && node dist/server.js"]
+    # Aplica migraciones + seed (idempotentes) y arranca el servidor vía pm2.
+    # Bun ejecuta los fuentes TypeScript directamente — sin compilar a dist/.
+    command: ["sh", "-c", "bun run src/db/migrate.ts && bun run src/db/seed.ts && bunx pm2-runtime start ecosystem.config.cjs --only api"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,7 +118,7 @@ services:
       context: ../api
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["node", "dist/worker.js"]
+    command: ["bunx", "pm2-runtime", "start", "ecosystem.config.cjs", "--only", "worker"]
     env_file:
       - path: ../api/.env
         required: false

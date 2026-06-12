@@ -19,6 +19,8 @@
 export default defineNuxtConfig({
   // Nuxt 4 behaviour explicitly opted in.
   compatibilityVersion: 4,
+  compatibilityDate: '2026-06-12',
+
 
   // ADR-F01: client-only static SPA.
   ssr: false,

@@ -1,39 +1,47 @@
 # syntax=docker/dockerfile:1
 
-# --- Build stage: compile TypeScript to dist/ --------------------------------
-FROM node:22-alpine AS build
+# Base limpia de Alpine. Bun se instala manualmente (variante musl).
+# No se usa la imagen oven/bun.
+FROM alpine:3.20 AS runtime
 WORKDIR /app
 
-# Toolchain for native addons (argon2 has no musl/Alpine prebuilt -> built from
-# source via node-gyp). Only needed in the build stage; the compiled .node is
-# copied into the runtime stage with node_modules.
-RUN apk add --no-cache python3 make g++
+# Libs que necesita el binario musl de bun + utilidades para instalarlo.
+# BusyBox (incluido en Alpine) ya trae wget — usado por el healthcheck.
+RUN apk add --no-cache bash libstdc++ libgcc curl unzip
 
-# Install full deps (including dev) for the build.
-COPY package*.json ./
-RUN npm ci
+# Instalar bun (el instalador detecta Alpine/musl automáticamente).
+# Para builds reproducibles fija la versión:
+#   docker build --build-arg BUN_VERSION=1.x.y ...
+# Por defecto instala la última versión estable.
+ARG BUN_VERSION=latest
+ENV BUN_INSTALL=/usr/local
+RUN if [ "$BUN_VERSION" = "latest" ]; then \
+      curl -fsSL https://bun.sh/install | bash; \
+    else \
+      curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"; \
+    fi
+# El instalador pone el binario en $BUN_INSTALL/bin/bun (/usr/local/bin/bun).
 
-# Compile the sources.
+# Instalar dependencias (incluye pm2 y @node-rs/argon2 con binarios precompilados).
+# Sin compilación nativa: no hace falta python3/make/g++.
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+# Código fuente y configuración de procesos pm2.
+# Los .sql de migraciones ya viven en src/db/migrations/ — bun los resuelve
+# con __dirname sin necesidad del copiado frágil del paso tsc → dist/.
 COPY tsconfig*.json ./
 COPY src ./src
-RUN npm run build
+COPY ecosystem.config.cjs ./
 
-# Drop dev dependencies so the runtime stage copies a lean node_modules.
-RUN npm prune --omit=dev
+# Usuario no-root. pm2 escribe en $PM2_HOME dentro del contenedor.
+RUN addgroup -S app && adduser -S -G app app
+ENV PM2_HOME=/home/app/.pm2
+RUN chown -R app:app /app /home/app
+USER app
 
-# --- Runtime stage: minimal image running the compiled output ----------------
-FROM node:22-alpine AS runtime
-WORKDIR /app
-
-ENV NODE_ENV=production
-
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./package.json
-
-USER node
 EXPOSE 3000
 
-# The `worker` service reuses this exact image with a command override:
-#   command: ["node", "dist/worker.js"]
-CMD ["node", "dist/server.js"]
+# docker-compose sobreescribe este CMD para inyectar migrate+seed antes de
+# arrancar, o para seleccionar --only worker.
+CMD ["bunx", "pm2-runtime", "start", "ecosystem.config.cjs", "--only", "api"]

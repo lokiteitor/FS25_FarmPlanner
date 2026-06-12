@@ -17,17 +17,19 @@ docs/   # Architecture docs, OpenAPI contract, DB model
 
 ### API (`api/`)
 
+El API corre TypeScript directamente con **bun** (sin compilar a `dist/`), gestionado
+por **pm2** en Docker.
+
 ```bash
-npm run dev          # hot-reload API (tsx watch, port 3000)
-npm run worker:dev   # hot-reload BullMQ worker
+bun run dev          # hot-reload API en local (bun --watch, port 3000)
+bun run worker:dev   # hot-reload BullMQ worker en local
 npm run typecheck    # tsc --noEmit
 npm run lint         # eslint
 npm run test         # vitest run (all tests)
 npm run test:watch   # vitest watch
-npm run build        # tsc → dist/
 npm run db:generate  # drizzle-kit: generate migrations from schema
-npm run db:migrate   # apply pending migrations
-npm run db:seed      # seed catalog data (game_versions, crops, animals, constants)
+npm run db:migrate   # apply pending migrations (bun run src/db/migrate.ts)
+npm run db:seed      # seed catalog data (bun run src/db/seed.ts)
 ```
 
 ### Web (`web/`)
@@ -44,8 +46,16 @@ npm run test         # vitest run
 
 ```bash
 cp docker/.env.example docker/.env   # then edit secrets
+
+# Producción (bun + pm2, sin watch):
 docker compose -f docker/docker-compose.yml up --build
 # App: http://localhost:80  |  API health: http://localhost:80/api/v1/health
+
+# Desarrollo en Docker (bun + pm2 con watch — reinicia al editar src/):
+docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up --build
+
+# Fijar versión de bun en el build (recomendado en producción):
+docker compose -f docker/docker-compose.yml build --build-arg BUN_VERSION=1.x.y
 ```
 
 ### Running a single API test file

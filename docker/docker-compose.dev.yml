@@ -1,0 +1,28 @@
+# =============================================================================
+# FS25 Farm Planner - Docker Compose dev overlay
+# -----------------------------------------------------------------------------
+# Activa el modo watch de pm2 (NODE_ENV=development) y monta el código fuente
+# del host para que los cambios locales disparen reinicios automáticos.
+#
+# Uso:
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up --build
+#
+# Nota: NUNCA montar sobre /app/node_modules — las deps viven en la imagen.
+# =============================================================================
+
+services:
+  api:
+    environment:
+      NODE_ENV: development
+    # Mismo migrate+seed que prod, pero con NODE_ENV=development → pm2 activa watch.
+    command: ["sh", "-c", "bun run src/db/migrate.ts && bun run src/db/seed.ts && bunx pm2-runtime start ecosystem.config.cjs --only api"]
+    volumes:
+      - ../api/src:/app/src                              # fuentes vigilados por pm2 watch
+      - ../api/ecosystem.config.cjs:/app/ecosystem.config.cjs
+
+  worker:
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ../api/src:/app/src
+      - ../api/ecosystem.config.cjs:/app/ecosystem.config.cjs
