@@ -160,6 +160,40 @@ export interface GameConstants {
   milkPriceScalars: MilkPriceScalars
 }
 
+/** A production building type from the catalog (mill, bakery, oil_mill…). */
+export interface ProductionBuildingType {
+  id: string
+  slug: string
+  nameEs: string
+  nameEn: string
+}
+
+/** A manufactured product or raw material (non-crop) in the production catalog. */
+export interface ProductionProduct {
+  id: string
+  slug: string
+  nameEs: string
+  nameEn: string
+}
+
+/** A single input or output line in a production chain recipe. */
+export interface ProductionIO {
+  slug: string
+  quantityPerCycle: number
+}
+
+/** A production chain recipe from the catalog. */
+export interface ProductionChain {
+  id: string
+  buildingTypeSlug: string
+  slug: string
+  nameEs: string
+  nameEn: string
+  cyclesPerMonth: number
+  inputs: ProductionIO[]
+  outputs: ProductionIO[]
+}
+
 /** Everything loaded for a single game version. */
 export interface Catalog {
   gameVersionId: string
@@ -167,4 +201,7 @@ export interface Catalog {
   silageCrops: SilageCrop[]
   animalTypes: AnimalType[]
   constants: GameConstants
+  productionBuildingTypes: ProductionBuildingType[]
+  productionProducts: ProductionProduct[]
+  productionChains: ProductionChain[]
 }

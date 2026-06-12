@@ -264,7 +264,61 @@ export const animalCalculatorConfigs = pgTable(
   ],
 );
 
-// 14. calculator_states
+// 14. production_buildings
+
+/**
+ * A single chain (recipe) inside a production building's `chains` JSONB array.
+ * Validated by zod in the service layer on every write.
+ *
+ * - `catalogChainSlug`: null for fully custom (mod) chains with no catalog ref.
+ * - `cyclesPerMonth`, `inputs`, `outputs`: null means "use the catalog default".
+ * - `isActive`: when false, the chain is stored but excluded from cycle-split
+ *   calculations (as if it weren't there).
+ */
+export interface UserChain {
+  id: string;
+  catalogChainSlug: string | null;
+  name: string;
+  isActive: boolean;
+  cyclesPerMonth?: number | null;
+  inputs?: UserProductionIO[] | null;
+  outputs?: UserProductionIO[] | null;
+}
+
+export interface UserProductionIO {
+  slug: string;
+  quantityPerCycle: number;
+}
+
+export const productionBuildings = pgTable(
+  'production_buildings',
+  {
+    id: uuid('id').primaryKey().default(uuidv7()),
+    farmId: uuid('farm_id')
+      .notNull()
+      .references(() => farms.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    buildingTypeSlug: varchar('building_type_slug', { length: 50 }).notNull(),
+    chains: jsonb('chains')
+      .$type<UserChain[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    unique('production_buildings_farm_name_unique').on(t.farmId, t.name),
+    index('idx_production_buildings_farm_id').on(t.farmId),
+  ],
+);
+
+// 15. calculator_states
 export const calculatorStates = pgTable(
   'calculator_states',
   {

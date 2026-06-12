@@ -342,6 +342,64 @@ export interface WorkSpeedInput {
   machines: SpeedMachineInput[]
 }
 
+// --- Production engine I/O --------------------------------------------------
+//
+// The production engine is parametrized ONLY by the building + its resolved
+// chains; it does NOT use EngineCatalog or FarmContext (production quantities
+// are independent of difficulty and yield bonus).
+// The caller (the widget composable) resolves overrides (cyclesPerMonth,
+// inputs, outputs) before passing chains to the engine.
+
+/** A single input or output line in a resolved production chain recipe. */
+export interface EngineProductionIO {
+  slug: string
+  /** Optional display label resolved by the frontend (crop or product name). */
+  label?: string
+  quantityPerCycle: number
+}
+
+/** A production chain with all overrides already resolved — ready for the engine. */
+export interface EngineProductionChain {
+  id: string
+  name: string
+  isActive: boolean
+  cyclesPerMonth: number
+  inputs: EngineProductionIO[]
+  outputs: EngineProductionIO[]
+}
+
+/** A production building ready for the engine (building + resolved chains). */
+export interface EngineProductionBuilding {
+  id: string
+  name: string
+  buildingTypeSlug: string
+  chains: EngineProductionChain[]
+}
+
+/** Monthly result for a single chain inside a building. */
+export interface ProductionChainResult {
+  chainId: string
+  name: string
+  isActive: boolean
+  /** Effective cycles = baseCyclesPerMonth / activeChainCount. */
+  effectiveCyclesPerMonth: number
+  inputsPerMonth: { slug: string; label?: string; quantityPerMonth: number }[]
+  outputsPerMonth: { slug: string; label?: string; quantityPerMonth: number }[]
+}
+
+/** Monthly production result for a whole building (all chains aggregated). */
+export interface ProductionBuildingResult {
+  buildingId: string
+  buildingName: string
+  buildingTypeSlug: string
+  activeChainCount: number
+  chains: ProductionChainResult[]
+  /** Sum of all inputs across active chains, keyed by slug. */
+  totalInputsPerMonth: { slug: string; label?: string; quantityPerMonth: number }[]
+  /** Sum of all outputs across active chains, keyed by slug. */
+  totalOutputsPerMonth: { slug: string; label?: string; quantityPerMonth: number }[]
+}
+
 /** Result of a work-time projection. */
 export interface WorkSpeedResult {
   /** Echoed area (hectares). */

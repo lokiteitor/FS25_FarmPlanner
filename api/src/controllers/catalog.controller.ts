@@ -31,6 +31,9 @@ import {
   mapSilageCrop,
   mapAnimalType,
   mapGameConstants,
+  mapProductionBuildingType,
+  mapProductionProduct,
+  mapProductionChain,
 } from '../schemas/catalogResponse';
 import type { GameVersionQuery } from '../schemas/catalogResponse';
 
@@ -140,4 +143,49 @@ export async function getConstants(
 
   const rows = await catalogRepository.listConstants(gameVersionId);
   void reply.status(200).send({ data: mapGameConstants(rows) });
+}
+
+/** GET /catalog/production-building-types → 200 { data: ProductionBuildingType[] }. */
+export async function listProductionBuildingTypes(
+  request: FastifyRequest<{ Querystring: GameVersionQuery }>,
+  reply: FastifyReply,
+): Promise<void> {
+  const gameVersionId = await catalogRepository.resolveGameVersionId(
+    request.query.gameVersionId,
+  );
+  if (applyCatalogCache(request, reply, gameVersionId)) return;
+
+  const rows =
+    await catalogRepository.listProductionBuildingTypes(gameVersionId);
+  void reply
+    .status(200)
+    .send({ data: rows.map(mapProductionBuildingType) });
+}
+
+/** GET /catalog/production-products → 200 { data: ProductionProduct[] }. */
+export async function listProductionProducts(
+  request: FastifyRequest<{ Querystring: GameVersionQuery }>,
+  reply: FastifyReply,
+): Promise<void> {
+  const gameVersionId = await catalogRepository.resolveGameVersionId(
+    request.query.gameVersionId,
+  );
+  if (applyCatalogCache(request, reply, gameVersionId)) return;
+
+  const rows = await catalogRepository.listProductionProducts(gameVersionId);
+  void reply.status(200).send({ data: rows.map(mapProductionProduct) });
+}
+
+/** GET /catalog/production-chains → 200 { data: ProductionChain[] }. */
+export async function listProductionChains(
+  request: FastifyRequest<{ Querystring: GameVersionQuery }>,
+  reply: FastifyReply,
+): Promise<void> {
+  const gameVersionId = await catalogRepository.resolveGameVersionId(
+    request.query.gameVersionId,
+  );
+  if (applyCatalogCache(request, reply, gameVersionId)) return;
+
+  const rows = await catalogRepository.listProductionChains(gameVersionId);
+  void reply.status(200).send({ data: rows.map(mapProductionChain) });
 }

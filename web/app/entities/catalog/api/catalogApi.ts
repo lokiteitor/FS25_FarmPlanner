@@ -16,6 +16,9 @@ import type {
   GameConstants,
   GameVersion,
   SilageCrop,
+  ProductionBuildingType,
+  ProductionProduct,
+  ProductionChain,
 } from '../model/types'
 
 /** Build the `{ gameVersionId }` query, omitting it when undefined. */
@@ -53,4 +56,25 @@ export async function getConstants(gameVersionId?: string): Promise<GameConstant
     query: versionQuery(gameVersionId),
   })
   return data
+}
+
+/** GET /catalog/production-building-types — building types for the given (or active) version. */
+export function getProductionBuildingTypes(gameVersionId?: string): Promise<ProductionBuildingType[]> {
+  return getData<ProductionBuildingType[]>('/catalog/production-building-types', {
+    query: versionQuery(gameVersionId),
+  })
+}
+
+/** GET /catalog/production-products — manufactured products for the given (or active) version. */
+export function getProductionProducts(gameVersionId?: string): Promise<ProductionProduct[]> {
+  return getData<ProductionProduct[]>('/catalog/production-products', {
+    query: versionQuery(gameVersionId),
+  })
+}
+
+/** GET /catalog/production-chains — production chain recipes for the given (or active) version. */
+export function getProductionChains(gameVersionId?: string): Promise<ProductionChain[]> {
+  return getData<ProductionChain[]>('/catalog/production-chains', {
+    query: versionQuery(gameVersionId),
+  })
 }

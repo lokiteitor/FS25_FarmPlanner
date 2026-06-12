@@ -27,6 +27,9 @@ import type {
   SilageCropWithSlug,
   AnimalTypeRow,
   GameConstantRow,
+  ProductionBuildingTypeRow,
+  ProductionProductRow,
+  ProductionChainRow,
 } from '../repositories/catalog.repository';
 
 // ---------------------------------------------------------------------------
@@ -279,6 +282,81 @@ export function mapGameConstants(rows: GameConstantRow[]): GameConstantsDto {
 }
 
 // ---------------------------------------------------------------------------
+// ProductionBuildingType (catalog)
+// ---------------------------------------------------------------------------
+
+export const productionBuildingTypeSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameEs: z.string(),
+  nameEn: z.string(),
+});
+
+export type ProductionBuildingTypeDto = z.infer<
+  typeof productionBuildingTypeSchema
+>;
+
+export function mapProductionBuildingType(
+  row: ProductionBuildingTypeRow,
+): ProductionBuildingTypeDto {
+  return { id: row.id, slug: row.slug, nameEs: row.nameEs, nameEn: row.nameEn };
+}
+
+// ---------------------------------------------------------------------------
+// ProductionProduct (catalog)
+// ---------------------------------------------------------------------------
+
+export const productionProductSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  nameEs: z.string(),
+  nameEn: z.string(),
+});
+
+export type ProductionProductDto = z.infer<typeof productionProductSchema>;
+
+export function mapProductionProduct(
+  row: ProductionProductRow,
+): ProductionProductDto {
+  return { id: row.id, slug: row.slug, nameEs: row.nameEs, nameEn: row.nameEn };
+}
+
+// ---------------------------------------------------------------------------
+// ProductionChain (catalog)
+// ---------------------------------------------------------------------------
+
+const productionIOSchema = z.object({
+  slug: z.string(),
+  quantityPerCycle: z.number(),
+});
+
+export const productionChainSchema = z.object({
+  id: z.string().uuid(),
+  buildingTypeSlug: z.string(),
+  slug: z.string(),
+  nameEs: z.string(),
+  nameEn: z.string(),
+  cyclesPerMonth: z.number(),
+  inputs: z.array(productionIOSchema),
+  outputs: z.array(productionIOSchema),
+});
+
+export type ProductionChainDto = z.infer<typeof productionChainSchema>;
+
+export function mapProductionChain(row: ProductionChainRow): ProductionChainDto {
+  return {
+    id: row.id,
+    buildingTypeSlug: row.buildingTypeSlug,
+    slug: row.slug,
+    nameEs: row.nameEs,
+    nameEn: row.nameEn,
+    cyclesPerMonth: row.cyclesPerMonth,
+    inputs: row.inputs as { slug: string; quantityPerCycle: number }[],
+    outputs: row.outputs as { slug: string; quantityPerCycle: number }[],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Response envelopes (handed directly to the routes)
 // ---------------------------------------------------------------------------
 
@@ -293,3 +371,12 @@ export const cropsResponse = z.object({
 export const silageCropsResponse = dataEnvelope(z.array(silageCropSchema));
 export const animalTypesResponse = dataEnvelope(z.array(animalTypeSchema));
 export const constantsResponse = dataEnvelope(gameConstantsSchema);
+export const productionBuildingTypesResponse = dataEnvelope(
+  z.array(productionBuildingTypeSchema),
+);
+export const productionProductsResponse = dataEnvelope(
+  z.array(productionProductSchema),
+);
+export const productionChainsResponse = dataEnvelope(
+  z.array(productionChainSchema),
+);

@@ -22,6 +22,9 @@ import type {
   GameVersion,
   Crop,
   SilageCrop,
+  ProductionBuildingType,
+  ProductionChain,
+  ProductionProduct,
 } from './types'
 
 /** Cache key used when the caller does not pin a version (active version). */
@@ -103,6 +106,51 @@ export const useCatalogStore = defineStore('catalog', {
       return (species: AnimalSpecies) =>
         catalog?.animalTypes.find((a) => a.species === species)
     },
+
+    /** Lookup a production building type by slug in the current version. */
+    productionBuildingTypeBySlug(): (slug: string) => ProductionBuildingType | undefined {
+      const catalog = this.current
+      return (slug: string) =>
+        catalog?.productionBuildingTypes.find((bt) => bt.slug === slug)
+    },
+
+    /** Lookup a production product by slug in the current version. */
+    productionProductBySlug(): (slug: string) => ProductionProduct | undefined {
+      const catalog = this.current
+      return (slug: string) =>
+        catalog?.productionProducts.find((p) => p.slug === slug)
+    },
+
+    /** All production chains for a given building type slug. */
+    productionChainsByBuildingType(): (buildingTypeSlug: string) => ProductionChain[] {
+      const catalog = this.current
+      return (buildingTypeSlug: string) =>
+        catalog?.productionChains.filter(
+          (c) => c.buildingTypeSlug === buildingTypeSlug,
+        ) ?? []
+    },
+
+    /** Lookup a production chain by slug in the current version. */
+    productionChainBySlug(): (slug: string) => ProductionChain | undefined {
+      const catalog = this.current
+      return (slug: string) =>
+        catalog?.productionChains.find((c) => c.slug === slug)
+    },
+
+    /**
+     * Resolve the display name (Spanish) for any IO slug. Checks crops first,
+     * then production products, then falls back to the raw slug.
+     */
+    resolveIoLabel(): (slug: string) => string {
+      const catalog = this.current
+      return (slug: string) => {
+        const crop = catalog?.crops.find((c) => c.slug === slug)
+        if (crop) return crop.nameEs
+        const product = catalog?.productionProducts.find((p) => p.slug === slug)
+        if (product) return product.nameEs
+        return slug
+      }
+    },
   },
 
   actions: {
@@ -165,13 +213,24 @@ export const useCatalogStore = defineStore('catalog', {
       }
     },
 
-    /** Fetch the four catalogs in parallel and assemble a `Catalog`. */
+    /** Fetch all catalogs in parallel and assemble a `Catalog`. */
     async fetchAll(gameVersionId?: string): Promise<Catalog> {
-      const [crops, silageCrops, animalTypes, constants] = await Promise.all([
+      const [
+        crops,
+        silageCrops,
+        animalTypes,
+        constants,
+        productionBuildingTypes,
+        productionProducts,
+        productionChains,
+      ] = await Promise.all([
         catalogApi.getCrops(gameVersionId),
         catalogApi.getSilageCrops(gameVersionId),
         catalogApi.getAnimalTypes(gameVersionId),
         catalogApi.getConstants(gameVersionId),
+        catalogApi.getProductionBuildingTypes(gameVersionId),
+        catalogApi.getProductionProducts(gameVersionId),
+        catalogApi.getProductionChains(gameVersionId),
       ])
       return {
         // Prefer the explicit id; otherwise we leave it as the active sentinel
@@ -181,6 +240,9 @@ export const useCatalogStore = defineStore('catalog', {
         silageCrops,
         animalTypes,
         constants,
+        productionBuildingTypes,
+        productionProducts,
+        productionChains,
       }
     },
   },

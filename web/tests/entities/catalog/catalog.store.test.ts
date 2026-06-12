@@ -1,7 +1,8 @@
 // Unit tests for entities/catalog/model/catalog.store — the Pinia 'catalog'
-// store. The store's job is to fetch the four versioned catalogs (crops, silage
-// crops, animal types, constants) ONCE per version key and memoize the assembled
-// `Catalog`, so the engine/widgets can read it synchronously.
+// store. The store's job is to fetch the seven versioned catalog endpoints
+// (crops, silage crops, animal types, constants, production building types,
+// production products, production chains) ONCE per version key and memoize the
+// assembled `Catalog`, so the engine/widgets can read it synchronously.
 //
 // We mock the network layer (entities/catalog/api/catalogApi) entirely — the
 // store imports it as `import * as catalogApi from '../api/catalogApi'`, and
@@ -19,6 +20,9 @@ vi.mock('~/entities/catalog/api/catalogApi', () => ({
   getSilageCrops: vi.fn(),
   getAnimalTypes: vi.fn(),
   getConstants: vi.fn(),
+  getProductionBuildingTypes: vi.fn(),
+  getProductionProducts: vi.fn(),
+  getProductionChains: vi.fn(),
 }))
 
 import * as catalogApi from '~/entities/catalog/api/catalogApi'
@@ -39,10 +43,13 @@ beforeEach(() => {
   mockApi.getSilageCrops.mockResolvedValue([])
   mockApi.getAnimalTypes.mockResolvedValue([])
   mockApi.getConstants.mockResolvedValue(constants)
+  mockApi.getProductionBuildingTypes.mockResolvedValue([])
+  mockApi.getProductionProducts.mockResolvedValue([])
+  mockApi.getProductionChains.mockResolvedValue([])
 })
 
 describe('load (memoization / single-flight)', () => {
-  it('fetches all four endpoints exactly once and caches the result', async () => {
+  it('fetches all seven endpoints exactly once and caches the result', async () => {
     const store = useCatalogStore()
 
     const first = await store.load('v1')
@@ -57,6 +64,9 @@ describe('load (memoization / single-flight)', () => {
     expect(mockApi.getSilageCrops).toHaveBeenCalledTimes(1)
     expect(mockApi.getAnimalTypes).toHaveBeenCalledTimes(1)
     expect(mockApi.getConstants).toHaveBeenCalledTimes(1)
+    expect(mockApi.getProductionBuildingTypes).toHaveBeenCalledTimes(1)
+    expect(mockApi.getProductionProducts).toHaveBeenCalledTimes(1)
+    expect(mockApi.getProductionChains).toHaveBeenCalledTimes(1)
 
     expect(store.isLoaded).toBe(true)
     expect(store.current).toStrictEqual(first)
@@ -72,6 +82,7 @@ describe('load (memoization / single-flight)', () => {
     expect(a).toStrictEqual(b)
     expect(mockApi.getCrops).toHaveBeenCalledTimes(1)
     expect(mockApi.getConstants).toHaveBeenCalledTimes(1)
+    expect(mockApi.getProductionBuildingTypes).toHaveBeenCalledTimes(1)
   })
 
   it('caches each version key independently and switches `current`', async () => {
@@ -83,6 +94,7 @@ describe('load (memoization / single-flight)', () => {
     expect(v1.gameVersionId).toBe('v1')
     expect(v2.gameVersionId).toBe('v2')
     expect(mockApi.getCrops).toHaveBeenCalledTimes(2)
+    expect(mockApi.getProductionBuildingTypes).toHaveBeenCalledTimes(2)
     // `current` follows the last-loaded key.
     expect(store.current?.gameVersionId).toBe('v2')
 

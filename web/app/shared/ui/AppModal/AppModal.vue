@@ -120,6 +120,7 @@ onBeforeUnmount(() => {
     max-height: calc(100dvh - #{$space-xl});
     background: var(--glass-bg-strong);
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
   &__header {

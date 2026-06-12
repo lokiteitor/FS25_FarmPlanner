@@ -50,6 +50,7 @@ import stablesRoutes from './stables';
 import machineryRoutes from './machinery';
 import animalConfigsRoutes from './animalConfigs';
 import calculatorStatesRoutes from './calculatorStates';
+import productionBuildingsRoutes from './productionBuildings';
 import {
   farmCreateBody,
   farmUpdateBody,
@@ -152,6 +153,9 @@ const farmsRoutes: FastifyPluginAsyncZod = async (app) => {
       });
       await scoped.register(calculatorStatesRoutes, {
         prefix: '/:farmId/calculator-states',
+      });
+      await scoped.register(productionBuildingsRoutes, {
+        prefix: '/:farmId/production-buildings',
       });
     },
   );

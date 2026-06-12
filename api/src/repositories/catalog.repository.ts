@@ -23,6 +23,9 @@ import {
   silageCrops,
   animalTypes,
   gameConstants,
+  productionBuildingTypes,
+  productionProducts,
+  productionChains,
 } from '../db/schema';
 import { NotFoundError } from '../lib/errors';
 
@@ -31,6 +34,10 @@ export type CropRow = typeof crops.$inferSelect;
 export type SilageCropRow = typeof silageCrops.$inferSelect;
 export type AnimalTypeRow = typeof animalTypes.$inferSelect;
 export type GameConstantRow = typeof gameConstants.$inferSelect;
+export type ProductionBuildingTypeRow =
+  typeof productionBuildingTypes.$inferSelect;
+export type ProductionProductRow = typeof productionProducts.$inferSelect;
+export type ProductionChainRow = typeof productionChains.$inferSelect;
 
 /** A silage_crops row joined with its base crop's slug (derived, not a column). */
 export type SilageCropWithSlug = SilageCropRow & { cropSlug: string };
@@ -160,4 +167,43 @@ export async function listConstants(
     .from(gameConstants)
     .where(eq(gameConstants.gameVersionId, gameVersionId))
     .orderBy(asc(gameConstants.key));
+}
+
+/** List the production building types of a game version, ordered by slug. */
+export async function listProductionBuildingTypes(
+  gameVersionId: string,
+  tx: DbExecutor = db,
+): Promise<ProductionBuildingTypeRow[]> {
+  return tx
+    .select()
+    .from(productionBuildingTypes)
+    .where(eq(productionBuildingTypes.gameVersionId, gameVersionId))
+    .orderBy(asc(productionBuildingTypes.slug));
+}
+
+/** List the production products of a game version, ordered by slug. */
+export async function listProductionProducts(
+  gameVersionId: string,
+  tx: DbExecutor = db,
+): Promise<ProductionProductRow[]> {
+  return tx
+    .select()
+    .from(productionProducts)
+    .where(eq(productionProducts.gameVersionId, gameVersionId))
+    .orderBy(asc(productionProducts.slug));
+}
+
+/** List the production chains of a game version, ordered by building_type_slug then slug. */
+export async function listProductionChains(
+  gameVersionId: string,
+  tx: DbExecutor = db,
+): Promise<ProductionChainRow[]> {
+  return tx
+    .select()
+    .from(productionChains)
+    .where(eq(productionChains.gameVersionId, gameVersionId))
+    .orderBy(
+      asc(productionChains.buildingTypeSlug),
+      asc(productionChains.slug),
+    );
 }

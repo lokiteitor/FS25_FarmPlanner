@@ -23,4 +23,8 @@ export type {
   Difficulty,
   SellPriceType,
   AnimalSpecies,
+  ProductionBuildingType,
+  ProductionProduct,
+  ProductionIO,
+  ProductionChain,
 } from './model/types'

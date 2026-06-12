@@ -31,6 +31,9 @@ import {
   silageCropsResponse,
   animalTypesResponse,
   constantsResponse,
+  productionBuildingTypesResponse,
+  productionProductsResponse,
+  productionChainsResponse,
 } from '../schemas/catalogResponse';
 
 const catalogRoutes: FastifyPluginAsyncZod = async (app) => {
@@ -96,6 +99,45 @@ const catalogRoutes: FastifyPluginAsyncZod = async (app) => {
       },
     },
     catalogController.getConstants,
+  );
+
+  app.get(
+    '/production-building-types',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Tipos de edificios de producción',
+        querystring: gameVersionQuery,
+        response: { 200: productionBuildingTypesResponse },
+      },
+    },
+    catalogController.listProductionBuildingTypes,
+  );
+
+  app.get(
+    '/production-products',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Productos de fabricación (no cultivos)',
+        querystring: gameVersionQuery,
+        response: { 200: productionProductsResponse },
+      },
+    },
+    catalogController.listProductionProducts,
+  );
+
+  app.get(
+    '/production-chains',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Catálogo de cadenas de producción (recetas)',
+        querystring: gameVersionQuery,
+        response: { 200: productionChainsResponse },
+      },
+    },
+    catalogController.listProductionChains,
   );
 };
 

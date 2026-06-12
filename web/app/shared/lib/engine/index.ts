@@ -35,6 +35,14 @@ export {
   MAX_EFFICIENCY,
 } from './workSpeedEngine'
 
+export {
+  activeChains,
+  effectiveCyclesPerMonth,
+  quantityPerMonth,
+  chainProjection,
+  productionProjection,
+} from './productionEngine'
+
 export type {
   Difficulty,
   SellPriceType,
@@ -60,4 +68,9 @@ export type {
   SpeedMachineBreakdown,
   WorkSpeedInput,
   WorkSpeedResult,
+  EngineProductionIO,
+  EngineProductionChain,
+  EngineProductionBuilding,
+  ProductionChainResult,
+  ProductionBuildingResult,
 } from './types'

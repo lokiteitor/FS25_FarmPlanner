@@ -227,6 +227,99 @@ export const animalTypes = pgTable(
   ],
 );
 
+// 8.1 production_building_types
+export const productionBuildingTypes = pgTable(
+  'production_building_types',
+  {
+    id: uuid('id').primaryKey().default(uuidv7()),
+    gameVersionId: uuid('game_version_id')
+      .notNull()
+      .references(() => gameVersions.id, { onDelete: 'restrict' }),
+    slug: varchar('slug', { length: 50 }).notNull(),
+    nameEs: varchar('name_es', { length: 100 }).notNull(),
+    nameEn: varchar('name_en', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    unique('production_building_types_version_slug_unique').on(
+      t.gameVersionId,
+      t.slug,
+    ),
+  ],
+);
+
+// 8.2 production_products
+export const productionProducts = pgTable(
+  'production_products',
+  {
+    id: uuid('id').primaryKey().default(uuidv7()),
+    gameVersionId: uuid('game_version_id')
+      .notNull()
+      .references(() => gameVersions.id, { onDelete: 'restrict' }),
+    slug: varchar('slug', { length: 50 }).notNull(),
+    nameEs: varchar('name_es', { length: 100 }).notNull(),
+    nameEn: varchar('name_en', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    unique('production_products_version_slug_unique').on(
+      t.gameVersionId,
+      t.slug,
+    ),
+  ],
+);
+
+/** A single input or output line in a production chain recipe. */
+export interface ProductionIO {
+  slug: string;
+  quantityPerCycle: number;
+}
+
+// 8.3 production_chains
+export const productionChains = pgTable(
+  'production_chains',
+  {
+    id: uuid('id').primaryKey().default(uuidv7()),
+    gameVersionId: uuid('game_version_id')
+      .notNull()
+      .references(() => gameVersions.id, { onDelete: 'restrict' }),
+    buildingTypeSlug: varchar('building_type_slug', { length: 50 }).notNull(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    nameEs: varchar('name_es', { length: 150 }).notNull(),
+    nameEn: varchar('name_en', { length: 150 }).notNull(),
+    cyclesPerMonth: numeric('cycles_per_month', {
+      precision: 10,
+      scale: 2,
+      mode: 'number',
+    }).notNull(),
+    inputs: jsonb('inputs').$type<ProductionIO[]>().notNull().default(sql`'[]'::jsonb`),
+    outputs: jsonb('outputs').$type<ProductionIO[]>().notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    unique('production_chains_version_slug_unique').on(t.gameVersionId, t.slug),
+    check('production_chains_cycles_positive', sql`${t.cyclesPerMonth} > 0`),
+  ],
+);
+
 // 8. game_constants
 export const gameConstants = pgTable(
   'game_constants',

@@ -22,6 +22,7 @@ const mainLinks: NavLink[] = [
   { label: 'Campos', to: '/fields' },
   { label: 'Historial de cosechas', to: '/harvests' },
   { label: 'Establos', to: '/stables' },
+  { label: 'Producción', to: '/production' },
   { label: 'Maquinaria', to: '/machinery' },
   { label: 'Calculadora velocidad', to: '/speed-calculator' },
 ]

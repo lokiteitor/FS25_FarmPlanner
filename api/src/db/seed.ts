@@ -6,12 +6,18 @@ import {
   silageCrops,
   animalTypes,
   gameConstants,
+  productionBuildingTypes,
+  productionProducts,
+  productionChains,
 } from './schema';
 import { gameVersionsSeed } from './seeds/gameVersions';
 import { cropsSeed } from './seeds/crops';
 import { silageCropsSeed } from './seeds/silageCrops';
 import { animalTypesSeed } from './seeds/animalTypes';
 import { gameConstantsSeed } from './seeds/gameConstants';
+import { productionBuildingTypesSeed } from './seeds/productionBuildingTypes';
+import { productionProductsSeed } from './seeds/productionProducts';
+import { productionChainsSeed } from './seeds/productionChains';
 import {
   monthlyRatesSchema,
   feedOptionsSchema,
@@ -86,6 +92,9 @@ interface SeedSummary {
   silageInserted: number;
   animalTypesInserted: number;
   gameConstantsInserted: number;
+  buildingTypesInserted: number;
+  productionProductsInserted: number;
+  productionChainsInserted: number;
 }
 
 async function seed(): Promise<SeedSummary> {
@@ -204,12 +213,70 @@ async function seed(): Promise<SeedSummary> {
       })
       .returning({ id: gameConstants.id });
 
+    // 8) Insert production_building_types.
+    const buildingTypeRows = productionBuildingTypesSeed.map((bt) => ({
+      gameVersionId,
+      slug: bt.slug,
+      nameEs: bt.nameEs,
+      nameEn: bt.nameEn,
+    }));
+    const insertedBuildingTypes = await tx
+      .insert(productionBuildingTypes)
+      .values(buildingTypeRows)
+      .onConflictDoNothing({
+        target: [
+          productionBuildingTypes.gameVersionId,
+          productionBuildingTypes.slug,
+        ],
+      })
+      .returning({ id: productionBuildingTypes.id });
+
+    // 9) Insert production_products.
+    const productRows = productionProductsSeed.map((p) => ({
+      gameVersionId,
+      slug: p.slug,
+      nameEs: p.nameEs,
+      nameEn: p.nameEn,
+    }));
+    const insertedProducts = await tx
+      .insert(productionProducts)
+      .values(productRows)
+      .onConflictDoNothing({
+        target: [
+          productionProducts.gameVersionId,
+          productionProducts.slug,
+        ],
+      })
+      .returning({ id: productionProducts.id });
+
+    // 10) Insert production_chains.
+    const chainRows = productionChainsSeed.map((c) => ({
+      gameVersionId,
+      buildingTypeSlug: c.buildingTypeSlug,
+      slug: c.slug,
+      nameEs: c.nameEs,
+      nameEn: c.nameEn,
+      cyclesPerMonth: c.cyclesPerMonth,
+      inputs: c.inputs,
+      outputs: c.outputs,
+    }));
+    const insertedChains = await tx
+      .insert(productionChains)
+      .values(chainRows)
+      .onConflictDoNothing({
+        target: [productionChains.gameVersionId, productionChains.slug],
+      })
+      .returning({ id: productionChains.id });
+
     return {
       gameVersionId,
       cropsInserted: insertedCrops.length,
       silageInserted: insertedSilage.length,
       animalTypesInserted: insertedAnimals.length,
       gameConstantsInserted: insertedConstants.length,
+      buildingTypesInserted: insertedBuildingTypes.length,
+      productionProductsInserted: insertedProducts.length,
+      productionChainsInserted: insertedChains.length,
     };
   });
 }
@@ -220,13 +287,19 @@ seed()
       summary.cropsInserted === 0 &&
       summary.silageInserted === 0 &&
       summary.animalTypesInserted === 0 &&
-      summary.gameConstantsInserted === 0;
+      summary.gameConstantsInserted === 0 &&
+      summary.buildingTypesInserted === 0 &&
+      summary.productionProductsInserted === 0 &&
+      summary.productionChainsInserted === 0;
     console.log('[seed] summary:', {
       gameVersionId: summary.gameVersionId,
       crops: `${summary.cropsInserted}/${cropsSeed.length}`,
       silageCrops: `${summary.silageInserted}/${silageCropsSeed.length}`,
       animalTypes: `${summary.animalTypesInserted}/${animalTypesSeed.length}`,
       gameConstants: `${summary.gameConstantsInserted}/${Object.keys(gameConstantsSeed).length}`,
+      buildingTypes: `${summary.buildingTypesInserted}/${productionBuildingTypesSeed.length}`,
+      productionProducts: `${summary.productionProductsInserted}/${productionProductsSeed.length}`,
+      productionChains: `${summary.productionChainsInserted}/${productionChainsSeed.length}`,
     });
     if (allZero) {
       console.log('[seed] already seeded (nothing inserted) — idempotent no-op');
