@@ -177,21 +177,30 @@ function onClose() {
   }
 
   &__input {
+    width: 100%;
     padding: $space-sm $space-md;
-    border: 1px solid var(--border);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
     border-radius: var(--radius-md);
-    background: var(--input-bg, var(--surface));
+    background: rgba(255, 255, 255, 0.08);
     color: var(--text);
     font-size: 1rem;
-    transition: border-color 0.15s;
+    box-sizing: border-box;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
 
     &:focus {
       outline: none;
-      border-color: var(--accent);
+      border-color: $primary;
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba($primary, 0.2);
     }
 
     &--error {
       border-color: var(--danger);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 71, 87, 0.2);
     }
 
     &:disabled {

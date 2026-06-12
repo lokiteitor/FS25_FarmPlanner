@@ -47,11 +47,12 @@ export default defineNuxtConfig({
     },
   },
 
-  // Dev only: proxy /api to the locally running API (production uses nginx).
+  // Dev only: proxy /api toward the dockerized API through nginx (port 80).
+  // In production, nginx serves the static SPA and proxies /api from the same server.
   nitro: {
     devProxy: {
       '/api': {
-        target: 'http://localhost:3000/api',
+        target: 'http://localhost/api',
         changeOrigin: true,
       },
     },

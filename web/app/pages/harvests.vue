@@ -130,6 +130,45 @@ const columns: DataTableColumn[] = [
   { key: 'projectedYieldLiters', label: 'Proyectado (L)', align: 'right' },
   { key: 'diffPercent', label: 'Diferencia', align: 'right' },
 ]
+
+// ── Resumen por cultivo ───────────────────────────────────────────────────────
+
+interface CropSummaryRow extends Record<string, unknown> {
+  cropId: string
+  cropName: string
+  count: number
+  totalLiters: number
+  avgLiters: number
+}
+
+const cropSummaryRows = computed<CropSummaryRow[]>(() => {
+  const map = new Map<string, CropSummaryRow>()
+  for (const r of harvestStore.records) {
+    const key = r.cropId ?? '__none__'
+    const row = map.get(key)
+    if (row) {
+      row.count++
+      row.totalLiters += r.actualYieldLiters
+      row.avgLiters = row.totalLiters / row.count
+    } else {
+      map.set(key, {
+        cropId: key,
+        cropName: cropNameForId(r.cropId),
+        count: 1,
+        totalLiters: r.actualYieldLiters,
+        avgLiters: r.actualYieldLiters,
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.totalLiters - a.totalLiters)
+})
+
+const cropSummaryColumns: DataTableColumn[] = [
+  { key: 'cropName', label: 'Cultivo' },
+  { key: 'count', label: 'Cosechas', align: 'right', width: '7rem' },
+  { key: 'totalLiters', label: 'Total real (L)', align: 'right' },
+  { key: 'avgLiters', label: 'Promedio por cosecha (L)', align: 'right' },
+]
 </script>
 
 <template>
@@ -164,11 +203,6 @@ const columns: DataTableColumn[] = [
     <template v-else-if="ready">
       <div class="harvests-page__stats">
         <StatCard label="Cosechas" :value="formatNumber(harvestStore.count)" />
-        <StatCard
-          label="Litros reales totales"
-          :value="formatNumber(harvestStore.totalActualYieldLiters, 0)"
-          unit="L"
-        />
       </div>
 
       <GlassCard title="Historial de cosechas">
@@ -222,6 +256,20 @@ const columns: DataTableColumn[] = [
           </template>
         </DataTable>
       </GlassCard>
+
+      <GlassCard title="Rendimiento por cultivo">
+        <DataTable :columns="cropSummaryColumns" :rows="cropSummaryRows" row-key="cropId">
+          <template #cell-totalLiters="{ value }">
+            {{ formatNumber(value as number, 0) }}
+          </template>
+          <template #cell-avgLiters="{ value }">
+            {{ formatNumber(value as number, 0) }}
+          </template>
+          <template #empty>
+            <span>Sin cosechas registradas.</span>
+          </template>
+        </DataTable>
+      </GlassCard>
     </template>
   </div>
 </template>
@@ -257,7 +305,7 @@ const columns: DataTableColumn[] = [
     grid-template-columns: 1fr;
 
     @include respond-to('sm') {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     }
   }
 
@@ -276,11 +324,23 @@ const columns: DataTableColumn[] = [
 
   &__filter-select {
     padding: $space-xs $space-sm;
-    border: 1px solid var(--border);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
     border-radius: var(--radius-md);
-    background: var(--surface);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--text);
     font-size: 0.875rem;
+    cursor: pointer;
+    transition: border-color $transition-fast;
+
+    option {
+      background: #1a2230;
+      color: var(--text);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+    }
   }
 
   &__diff {
