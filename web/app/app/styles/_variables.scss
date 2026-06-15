@@ -32,6 +32,9 @@ $bg-gradient-end: #0b0f14;
 $glass-bg: rgba(255, 255, 255, 0.06);
 $glass-bg-strong: rgba(255, 255, 255, 0.1);
 $glass-border: rgba(255, 255, 255, 0.12);
+// Opaque dark surface for floating popovers/dropdowns so content behind them
+// does not bleed through (backdrop-filter alone is not reliable enough).
+$surface-popover: rgba(22, 29, 38, 0.98);
 
 // Text
 $text: #e6edf3;
@@ -114,6 +117,7 @@ $font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
   --glass-bg: #{$glass-bg};
   --glass-bg-strong: #{$glass-bg-strong};
   --glass-border: #{$glass-border};
+  --surface-popover: #{$surface-popover};
 
   // Text
   --text: #{$text};

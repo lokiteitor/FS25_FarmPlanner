@@ -252,7 +252,8 @@ defineExpose({ openCreate })
     padding: $space-sm;
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
-    background: var(--glass-bg-strong);
+    // Opaque surface so the sidebar text behind the dropdown does not bleed through.
+    background: var(--surface-popover);
     backdrop-filter: blur(var(--blur-glass));
     -webkit-backdrop-filter: blur(var(--blur-glass));
     box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.35));

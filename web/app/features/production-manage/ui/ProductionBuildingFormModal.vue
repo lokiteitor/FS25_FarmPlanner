@@ -26,11 +26,27 @@ const emit = defineEmits<{
 const catalogStore = useCatalogStore()
 const buildingStore = useProductionBuildingStore()
 
+/** Sentinel value for the "Custom" entry in the building-type dropdown. */
+const CUSTOM_TYPE_VALUE = '__custom__'
+
 const name = ref('')
-const buildingTypeSlug = ref('')
+/** Dropdown selection: a catalog slug or CUSTOM_TYPE_VALUE. */
+const typeSelection = ref('')
+/** Free-text type slug, used only when "Custom" is selected. */
+const customTypeSlug = ref('')
 const notes = ref('')
 const chains = ref<UserChain[]>([])
 const errorMsg = ref<string | null>(null)
+
+/** Catalog/fallback type slugs (excludes the "Custom" sentinel). */
+const knownTypeSlugs = computed<Set<string>>(() => {
+  const types = catalogStore.current?.productionBuildingTypes ?? []
+  const slugs =
+    types.length > 0
+      ? types.map((bt) => bt.slug)
+      : Object.keys(BUILDING_TYPE_LABELS)
+  return new Set(slugs)
+})
 
 watch(
   () => [props.open, props.editing],
@@ -39,12 +55,21 @@ watch(
     errorMsg.value = null
     if (props.editing) {
       name.value = props.editing.name
-      buildingTypeSlug.value = props.editing.buildingTypeSlug
+      const slug = props.editing.buildingTypeSlug
+      if (knownTypeSlugs.value.has(slug)) {
+        typeSelection.value = slug
+        customTypeSlug.value = ''
+      } else {
+        // Type not in the catalog → treat as custom and prefill the free-text field.
+        typeSelection.value = CUSTOM_TYPE_VALUE
+        customTypeSlug.value = slug
+      }
       notes.value = props.editing.notes ?? ''
       chains.value = props.editing.chains.map((c) => ({ ...c }))
     } else {
       name.value = ''
-      buildingTypeSlug.value = ''
+      typeSelection.value = ''
+      customTypeSlug.value = ''
       notes.value = ''
       chains.value = []
     }
@@ -52,12 +77,20 @@ watch(
   { immediate: true },
 )
 
+const isCustomType = computed(() => typeSelection.value === CUSTOM_TYPE_VALUE)
+
+/** Resolved type slug sent to the API: the free-text value when custom. */
+const buildingTypeSlug = computed(() =>
+  isCustomType.value ? customTypeSlug.value.trim() : typeSelection.value,
+)
+
 const buildingTypeOptions = computed<SelectOption[]>(() => {
   const types = catalogStore.current?.productionBuildingTypes ?? []
-  if (types.length > 0) {
-    return types.map((bt) => ({ value: bt.slug, label: bt.nameEs }))
-  }
-  return Object.entries(BUILDING_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+  const base =
+    types.length > 0
+      ? types.map((bt) => ({ value: bt.slug, label: bt.nameEs }))
+      : Object.entries(BUILDING_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+  return [...base, { value: CUSTOM_TYPE_VALUE, label: 'Custom (personalizado)' }]
 })
 
 const availableCatalogChains = computed<ProductionChain[]>(() =>
@@ -133,6 +166,10 @@ function toggleOverrideRecipe(chain: UserChain): void {
 
 async function onSubmit(): Promise<void> {
   errorMsg.value = null
+  if (isCustomType.value && !buildingTypeSlug.value) {
+    errorMsg.value = 'Indica un nombre para el tipo personalizado.'
+    return
+  }
   const payload = {
     name: name.value.trim(),
     buildingTypeSlug: buildingTypeSlug.value,
@@ -173,10 +210,19 @@ const title = computed(() => (props.editing ? 'Editar edificio' : 'Nuevo edifici
       />
 
       <AppSelect
-        v-model="buildingTypeSlug"
+        v-model="typeSelection"
         label="Tipo de edificio"
         :options="buildingTypeOptions"
         placeholder="Selecciona tipo…"
+        required
+        :disabled="saving"
+      />
+
+      <AppInput
+        v-if="isCustomType"
+        v-model="customTypeSlug"
+        label="Tipo personalizado"
+        placeholder="p. ej. destileria"
         required
         :disabled="saving"
       />
@@ -189,7 +235,7 @@ const title = computed(() => (props.editing ? 'Editar edificio' : 'Nuevo edifici
       />
 
       <!-- Chain editor — only shown once a building type is selected -->
-      <div v-if="buildingTypeSlug" class="building-form__chains">
+      <div v-if="typeSelection" class="building-form__chains">
         <!-- Section header -->
         <div class="building-form__chains-header">
           <span class="building-form__section-title">Recetas</span>
